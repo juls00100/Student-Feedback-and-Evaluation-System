@@ -16,8 +16,10 @@ public class config {
     public void connectDB() {
         try {
             Class.forName("org.sqlite.JDBC");
+            if (this.conn == null || this.conn.isClosed()) {
             this.conn = DriverManager.getConnection("jdbc:sqlite:Evaluation System.db");
             System.out.println("LET'S CREATE INFINITE LOOP OF ROMANCE, LOVE U <3");
+            }      
         } catch (Exception e) {
             System.out.println("Connection Failed: " + e.getMessage());
         }
@@ -215,4 +217,53 @@ public class config {
         }
         System.out.println("----------------------------------------------------------------------------------------------------------------------------------------");
     }
+    // Inside config.java
+public java.util.List<java.util.Map<String, Object>> fetchRecords(String sqlQuery, Object... values) {
+    java.util.List<java.util.Map<String, Object>> records = new java.util.ArrayList<>();
+    PreparedStatement pstmt = null;
+    ResultSet rs = null;
+
+    // Use the member variable 'this.conn'
+    try { 
+        // 1. Check if connection is valid before proceeding
+        if (this.conn == null || this.conn.isClosed()) {
+             System.out.println("Error: Connection is not active for fetchRecords.");
+             return records;
+        }
+
+        pstmt = this.conn.prepareStatement(sqlQuery); // Use the member connection
+
+        for (int i = 0; i < values.length; i++) {
+            pstmt.setObject(i + 1, values[i]);
+        }
+
+        rs = pstmt.executeQuery();
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
+
+        while (rs.next()) {
+            java.util.Map<String, Object> row = new java.util.HashMap<>();
+            for (int i = 1; i <= columnCount; i++) {
+                row.put(metaData.getColumnName(i), rs.getObject(i));
+            }
+            records.add(row);
+        }
+
+    } catch (SQLException e) {
+        System.out.println("Error fetching records: " + e.getMessage());
+    } finally {
+        // Important: Only close the PreparedStatement and ResultSet, NOT the Connection
+        try {
+            if (rs != null) rs.close();
+        } catch (SQLException e) { /* Ignore */ }
+        try {
+            if (pstmt != null) pstmt.close();
+        } catch (SQLException e) { /* Ignore */ }
+    }
+
+    return records;
 }
+}
+
+
+
