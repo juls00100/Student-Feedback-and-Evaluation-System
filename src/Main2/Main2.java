@@ -53,22 +53,19 @@ public class Main2 {
     public static void userLoginFlow(Scanner sc, config con) {
     System.out.println("\n--- USER LOGIN (ADMIN/INSTRUCTOR) ---");
     System.out.print("ENTRE EMAIL: ");
-    String em = sc.nextLine(); // Reading 'em'
+    String em = sc.nextLine(); 
     System.out.print("ENTER PASSWORD: ");
-    String pas = sc.nextLine(); // Reading 'pas'
+    String pas = sc.nextLine(); 
 
     String qry = "SELECT * FROM tbl_user WHERE u_email = ? AND u_pass = ?";
     
-    // **********************************************
-    // *** FIX: Query Execution MUST come first ***
-    // **********************************************
     List<Map<String, Object>> result = con.fetchRecords(qry, em, pas); 
 
     if (result.isEmpty()) {
         System.out.println("INVALID CREDENTIALS");
     } else {
         System.out.println("**********************************************");
-        System.out.println("*** FIX: User data extraction MUST come here *** ");
+        System.out.println("*** JULIOS CAMPANER*** ");
         System.out.println(" **********************************************");
         Map<String, Object> user = result.get(0);
         String stat = user.get("u_status").toString();
@@ -83,7 +80,6 @@ public class Main2 {
             Object userIdObj = user.get("u_id");
             
             try{
-                // FIX: This safely converts Long (from DB) or String to int
                 int userId = ((Number) userIdObj).intValue(); 
             
                 if (type.equals("Admin")) {
