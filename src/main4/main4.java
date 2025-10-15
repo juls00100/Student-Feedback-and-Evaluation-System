@@ -1,4 +1,4 @@
-package main3;
+package main4;
 
 import config.config;
 import java.util.InputMismatchException;
@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.time.Year; 
 
-public class main3 {
+public class main4 {
     private static void viewInstructors(Scanner sc, String[] instructors) {
         System.out.println("\n--- INSTRUCTOR LIST ---");
         for (int i = 0; i < instructors.length; i++) {
@@ -41,26 +41,33 @@ public class main3 {
     }
 
     public static void main(String[] args) {
+    // ... inside main(String[] args)
     config db = new config();
     db.connectDB();
     Scanner sc = new Scanner(System.in);
     System.out.println("Sweetiest Welcome to you! In my Evaluation System");
-// ... inside main(String[] args)
+
     int mainChoice;
     do {
         System.out.println("\n--- MAIN MENU ---");
         System.out.println("1. STUDENT Login/Register");
         System.out.println("2. USER Login (Admin/Instructor)");
-        System.out.println("3. USER Register");
+        System.out.println("3. USER Register (Pending)");
         System.out.println("4. EXIT");
-        System.out.println("5. ADMIN PASSWORD RESET (DEV ONLY)"); // <--- NEW OPTION
+        System.out.println("5. QUICK CREATE ADMIN (DEV ONLY)");
+        System.out.println("6. VIEW ALL USER RECORDS (SQL DEBUG)"); // <--- NEW DEBUG OPTION
         System.out.print("Choose an option: ");
 
-        mainChoice = getIntInput(sc, 1, 5); // <--- Updated range 1 to 5
+        mainChoice = getIntInput(sc, 1, 6); // <--- Updated range 1 to 6
 
         switch (mainChoice) {
             case 1:
-                // ... (existing code)
+                // studentFlow handles registration and login, returning the ID
+                String loggedInStudentID = studentFlow(sc, db);
+                // Only proceed to the menu if a valid ID was returned (login successful)
+                if (loggedInStudentID != null) {
+                    studentMenu(sc, db, loggedInStudentID);
+                }
                 break;
             case 2:
                 userLoginFlow(sc, db);
@@ -71,14 +78,47 @@ public class main3 {
             case 4:
                 System.out.println("YOU CHOSEN EXIT. SEE YOU AGAIN!");
                 break;
-            case 5: // <--- NEW CASE
-                adminPasswordResetFlow(sc, db);
+            case 5:
+                quickAdminRegistrationFlow(sc, db);
+                break;
+            case 6:
+                viewAllUsers(db);
                 break;
         }
-    } while (mainChoice != 4); // Only exit on option 4
+    } while (mainChoice != 4);
     sc.close();
 }
-// ...
+    
+    public static void viewAllUsers(config con) {
+    System.out.println("\n--- 🕵️ ALL USER RECORDS (RAW DATA) 🕵️ ---");
+    System.out.print("⚠️ WARNING: This displays passwords. Enter 'YES' to continue: ");
+    Scanner sc = new Scanner(System.in);
+    String confirm = sc.nextLine().trim().toUpperCase();
+
+    if (!confirm.equals("YES")) {
+        System.out.println("Action cancelled. Returning to Main Menu.");
+        return;
+    }
+    
+    // We select all known columns, plus the primary key (PK) as a placeholder.
+    String Query = "SELECT * FROM tbl_user";
+    // NOTE: If your config.viewRecords cannot handle 'SELECT *', change the query to:
+    // String Query = "SELECT id, u_name, u_email, u_type, u_status, u_pass FROM tbl_user";
+    
+    // We are just guessing the column names here for display, but the raw data will show the actual column headers.
+    String[] headers = {"PK_ID", "Name", "Email", "Type", "Status", "Password"};
+    String[] columns = {"id", "u_name", "u_email", "u_type", "u_status", "u_pass"};
+    
+    System.out.println("\n--- TBL_USER RECORDS ---");
+    con.viewRecords(Query, headers, columns);
+    
+    System.out.println("\n--- END OF RECORDS ---");
+    System.out.println("The first column header in the table above is the real Primary Key name.");
+    System.out.println("Use that exact name (e.g., 'pk' or 'user_id') to fix the error in userLoginFlow.");
+    System.out.println("\nPress Enter to return to Main Menu...");
+    sc.nextLine();
+}
+    
     public static void userLoginFlow(Scanner sc, config con) {
     System.out.println("\n--- USER LOGIN (ADMIN/INSTRUCTOR) ---");
     System.out.print("ENTRE EMAIL: ");
@@ -94,7 +134,7 @@ public class main3 {
         System.out.println("INVALID CREDENTIALS");
     } else {
         System.out.println("**********************************************");
-        System.out.println("*** JULIOS DWAPO*** ");
+        System.out.println("*** JULIOS CAMPANER*** ");
         System.out.println(" **********************************************");
         Map<String, Object> user = result.get(0);
         String stat = user.get("u_status").toString();
@@ -106,9 +146,24 @@ public class main3 {
         } else if (stat.equals("Approved")) {
             System.out.println("LOGIN SUCCESS! Welcome, " + name + "!");
 
-            Object userIdObj = user.get("u_id");
+            Object userIdObj = user.get("id"); 
+            String foundKey = null;
+
+            for (String key : user.keySet()) {
+                // Look for 'id', 'u_id', 'user_id', etc., regardless of case.
+                if (key.toLowerCase().contains("id")) { 
+                    userIdObj = user.get(key);
+                    foundKey = key;
+                    break;
+                }
+            }
+            // ------------------------------------------------------------------------------------------------
 
             try{
+                if (userIdObj == null) {
+                    throw new NullPointerException("The column key 'id' was not found in the record. Check your database schema.");
+                }
+
                 int userId = ((Number) userIdObj).intValue();
 
                 if (type.equals("Admin")) {
@@ -119,8 +174,10 @@ public class main3 {
                     System.out.println("USER UNKNOWN.");
                 }
             }
-            catch (NumberFormatException | NullPointerException e) {
-                System.out.println("ERROR: Could not process User ID. Data corruption suspected. Log in failed.");
+            catch (Exception e) { // Catch all exceptions related to ID retrieval/conversion
+                System.out.println("ERROR: Could not process User ID.");
+                System.out.println("Reason: " + e.getMessage());
+                System.out.println("The database schema has an unusual primary key name. You must view the 'tbl_user' schema to find the correct column name.");
             }
         } else {
             System.out.println("Your account status is: " + stat + ". Please initiate to contact the Admin.");
@@ -161,58 +218,8 @@ public class main3 {
         System.out.println("\nREGISTRATION SUCCESSFUL! Your account is **Pending** Admin approval.");
         System.out.println("You will be able to log in once your account is Approved.");
     }// ... (Place this new method after userRegistrationFlow or similar helper methods)
+// ... (Place this new method after userRegistrationFlow)
 
-public static void adminPasswordResetFlow(Scanner sc, config con) {
-    System.out.println("\n--- 🛑 ADMIN PASSWORD RESET (MAINTENANCE) 🛑 ---");
-    System.out.print("⚠️ WARNING: This feature bypasses security checks. Enter 'YES' to proceed: ");
-    String confirm = sc.nextLine().trim().toUpperCase();
-
-    if (!confirm.equals("YES")) {
-        System.out.println("Action cancelled. Returning to Main Menu.");
-        return;
-    }
-
-    // 1. Prompt for Admin email
-    System.out.print("Enter the **ADMIN EMAIL** to reset: ");
-    String adminEmail = sc.nextLine();
-    
-    // 2. Find the admin user by email and ensure they are an 'Admin'
-    // We only select the name since we'll use the email for the update condition.
-    String qry = "SELECT u_name FROM tbl_user WHERE u_email = ? AND u_type = 'Admin' LIMIT 1";
-    
-    // Pass the adminEmail to the fetchRecords method as a parameter
-    List<Map<String, Object>> result = con.fetchRecords(qry, adminEmail); 
-
-    if (result.isEmpty()) {
-        System.out.println("ERROR: No 'Admin' user found with the email: " + adminEmail);
-        return;
-    }
-
-    Map<String, Object> admin = result.get(0);
-    String adminName = admin.get("u_name").toString();
-
-    // 3. Prompt for new password
-    System.out.println("\nAdministrator Found:");
-    System.out.println("  Name: " + adminName);
-    System.out.println("  Email: " + adminEmail);
-    System.out.print("Enter **NEW PASSWORD** for Admin (" + adminName + "): ");
-    String newPassword = sc.nextLine();
-
-    if (newPassword.trim().isEmpty()) {
-        System.out.println("Password cannot be empty. Reset cancelled.");
-        return;
-    }
-
-    // 4. Update the password using email
-    String sql = "UPDATE tbl_user SET u_pass = ? WHERE u_email = ? AND u_type = 'Admin'";
-    
-    // Pass the new password and the email for the update
-    con.updateRecord(sql, newPassword, adminEmail);
-
-    System.out.println("\n✅ **SUCCESS!** The password for Admin user '" + adminName + "' has been reset.");
-    System.out.println("Please log in with your new password using option 2.");
-    System.out.println("NOTE: Remove option 5 from the menu after regaining access.");
-}
     public static void adminDashboard(Scanner sc, config con, int adminId) {
         int choice;
         do {
@@ -382,28 +389,110 @@ public static void adminPasswordResetFlow(Scanner sc, config con) {
                 break;
             }
         } while (choice != 5);
+    }public static void approveAccounts(Scanner sc, config con) {
+    System.out.println("\n--- PENDING USER ACCOUNTS ---");
+
+    // 🛑 CRITICAL FIX: Changing 'ID' to 'id' here.
+    String Query = "SELECT id, u_name, u_email, u_type, u_status FROM tbl_user WHERE u_status = 'Pending'";
+    String[] headers = {"ID", "Name", "Email", "Type", "Status"};
+    String[] columns = {"id", "u_name", "u_email", "u_type", "u_status"}; // <-- Note: 'id' here
+
+    con.viewRecords(Query, headers, columns);
+
+    System.out.print("Enter ID to Approve (or 0 to cancel): ");
+    int ids = getIntInput(sc, 0, Integer.MAX_VALUE);
+
+    if (ids > 0) {
+        // We use 'id' in the WHERE clause of the UPDATE statement.
+        String sql = "UPDATE tbl_user SET u_status = ? WHERE id = ? AND u_status = 'Pending'";
+        con.updateRecord(sql, "Approved", ids);
+        System.out.println("User ID " + ids + " has been **APPROVED**.");
+    } else {
+        System.out.println("Account approval cancelled.");
     }
-    public static void approveAccounts(Scanner sc, config con) {
-        System.out.println("\n--- PENDING USER ACCOUNTS ---");
+}
+public static void adminPasswordResetFlow(Scanner sc, config con) {
+    System.out.println("\n--- 🛑 ADMIN PASSWORD RESET (MAINTENANCE) 🛑 ---");
+    System.out.print("⚠️ WARNING: This feature bypasses security checks. Enter 'YES' to proceed: ");
+    String confirm = sc.nextLine().trim().toUpperCase();
 
-        String Query = "SELECT u_id, u_name, u_email, u_type, u_status FROM tbl_user WHERE u_status = 'Pending'";
-        String[] headers = {"ID", "Name", "Email", "Type", "Status"};
-        String[] columns = {"u_id", "u_name", "u_email", "u_type", "u_status"};
+    if (!confirm.equals("YES")) {
+        System.out.println("Action cancelled. Returning to Main Menu.");
+        return;
+    }
 
-        con.viewRecords(Query, headers, columns);
+    // 1. Prompt for Admin email
+    System.out.print("Enter the **ADMIN EMAIL** to reset: ");
+    String adminEmail = sc.nextLine();
+    
+    // 2. Find the admin user by email and ensure they are an 'Admin'
+    String qry = "SELECT u_name FROM tbl_user WHERE u_email = ? AND u_type = 'Admin' LIMIT 1";
+    List<Map<String, Object>> result = con.fetchRecords(qry, adminEmail); 
 
-        System.out.print("Enter ID to Approve (or 0 to cancel): ");
-        int ids = getIntInput(sc, 0, Integer.MAX_VALUE);
+    if (result.isEmpty()) {
+        System.out.println("ERROR: No 'Admin' user found with the email: " + adminEmail);
+        return;
+    }
 
-        if (ids > 0) {
-            String sql = "UPDATE tbl_user SET u_status = ? WHERE u_id = ? AND u_status = 'Pending'";
-            con.updateRecord(sql, "Approved", ids);
-            System.out.println("User ID " + ids + " has been **APPROVED**.");
+    Map<String, Object> admin = result.get(0);
+    String adminName = admin.get("u_name").toString();
+
+    // 3. Prompt for new password
+    System.out.println("\nAdministrator Found:");
+    System.out.println("  Name: " + adminName);
+    System.out.println("  Email: " + adminEmail);
+    System.out.print("Enter **NEW PASSWORD** for Admin (" + adminName + "): ");
+    String newPassword = sc.nextLine();
+
+    if (newPassword.trim().isEmpty()) {
+        System.out.println("Password cannot be empty. Reset cancelled.");
+        return;
+    }
+
+    // 4. Update the password using email
+    String sql = "UPDATE tbl_user SET u_pass = ? WHERE u_email = ? AND u_type = 'Admin'";
+    con.updateRecord(sql, newPassword, adminEmail);
+
+    System.out.println("\n✅ **SUCCESS!** The password for Admin user '" + adminName + "' has been reset.");
+    System.out.println("Please log in with your new password using option 2.");
+}
+
+    
+    public static void quickAdminRegistrationFlow(Scanner sc, config con) {
+    System.out.println("\n--- 🛠️ QUICK ADMIN REGISTRATION (MAINTENANCE) 🛠️ ---");
+    System.out.print("Enter Admin Name: ");
+    String name = sc.nextLine();
+    String email;
+
+    while (true) {
+        System.out.print("Enter Admin Email (Must be unique): ");
+        email = sc.nextLine();
+
+        String qry = "SELECT u_email FROM tbl_user WHERE u_email = ?";
+        List<Map<String, Object>> result = con.fetchRecords(qry, email);
+
+        if (result.isEmpty()) {
+            break;
         } else {
-            System.out.println("Account approval cancelled.");
+            System.out.println("Email already exists. Please enter a different email.");
         }
     }
 
+    System.out.print("Create Admin Password: ");
+    String pass = sc.nextLine();
+
+    // The INSERT statement does not use the primary key name, so it's safe.
+    String sql = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES (?, ?, ?, ?, ?)";
+    
+    // Hardcoded 'Admin' and 'Approved' status
+    con.addRecord(sql, name, email, "Admin", "Approved", pass);
+
+    System.out.println("\n✅ **SUCCESS!** Administrator account created.");
+    System.out.println("Name: " + name);
+    System.out.println("Email: " + email);
+    System.out.println("\nPlease use option 2 to log in immediately.");
+    System.out.println("NOTE: Delete option 5 and this function after initial setup.");
+}
     private static void instructorMainActions(Scanner sc, config db, int instructorID) {
         int choice;
         do {
