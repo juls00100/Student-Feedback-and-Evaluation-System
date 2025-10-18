@@ -65,7 +65,7 @@ public class Main2 {
         System.out.println("INVALID CREDENTIALS");
     } else {
         System.out.println("**********************************************");
-        System.out.println("*** JULIOS CAMPANER*** ");
+        System.out.println("***WELCOME*** ");
         System.out.println(" **********************************************");
         Map<String, Object> user = result.get(0);
         String stat = user.get("u_status").toString();
@@ -80,7 +80,8 @@ public class Main2 {
             Object userIdObj = user.get("u_id");
             
             try{
-                int userId = ((Number) userIdObj).intValue(); 
+                // FIX: Safely convert the Object (which might be String or Long) to an int
+                int userId = Integer.parseInt(String.valueOf(userIdObj)); 
             
                 if (type.equals("Admin")) {
                     adminDashboard(sc, con, userId);
@@ -210,15 +211,9 @@ public class Main2 {
     }
     
     private static void instructorMenu(Scanner sc, config db) {
-        // NOTE: The original instructorMenu was the Admin menu.
-        // It's renamed to adminDashboard and is now called after a successful Admin login.
-        // I've kept the original logic inside the new adminDashboard method.
-        // To avoid confusion, I'm commenting out the original instructorMenu placeholder.
+        // NOTE: Commented out to avoid confusion
     }
     
-    // The rest of the existing methods are included below for completeness,
-    // assuming they rely on methods like `getIntInput` and `db.addRecord`, etc.
-
     // ... (getIntInput method)
     private static int getIntInput(Scanner sc, int min, int max) {
         int input;
@@ -246,14 +241,6 @@ public class Main2 {
             }
         }
     }
-    
-    // ... (studentFlow, studentMenu, studentEvaluation, viewEvaluation, editEvaluation, deleteEvaluation, viewMyAcc, 
-    //     manageStudents, manageInstructors, manageEvaluations, viewMyEvaluations methods remain as they were, 
-    //     except for the removed `instructorLoginFlow` and the updated `instructorMenu` logic in `adminDashboard`)
-    
-    
-    
-    // START OF EXISTING METHODS (For Context/Completeness)
     
     // (Existing studentFlow method)
     public static String studentFlow(Scanner sc, config db) {
