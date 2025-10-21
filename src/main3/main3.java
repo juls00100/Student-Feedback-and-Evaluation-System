@@ -11,9 +11,7 @@ public class main3 {
 
     private static final String SUPER_ADMIN_EMAIL = "developer@system.com"; 
     
-    // NEW METHOD TO CREATE TABLES
     public static void createDatabaseTables(config2 con) {
-        System.out.println("Checking database structure...");
         
         String[] tableCreationSql = new String[] {
             // 1. tbl_user (For Admin/Instructor/SuperAdmin logins)
@@ -25,7 +23,6 @@ public class main3 {
             "u_status TEXT NOT NULL," +
             "u_pass TEXT NOT NULL);",
             
-            // 2. tbl_student
             "CREATE TABLE IF NOT EXISTS tbl_student (" +
             "s_schoolID TEXT PRIMARY KEY," +
             "s_first_name TEXT NOT NULL," +
@@ -33,16 +30,13 @@ public class main3 {
             "s_email TEXT UNIQUE NOT NULL," +
             "s_year_level TEXT NOT NULL," +
             "s_status TEXT NOT NULL);",
-            
-            // 3. tbl_instructor
-            // Note: This table is used to map evaluation i_id to a name, separate from tbl_user for system logic.
+          
             "CREATE TABLE IF NOT EXISTS tbl_instructor (" +
             "i_id INTEGER PRIMARY KEY AUTOINCREMENT," +
             "i_first_name TEXT NOT NULL," +
             "i_last_name TEXT NOT NULL," +
-            "i_password TEXT NOT NULL);", // Added i_password for completeness, though it might not be strictly used in this structure.
+            "i_password TEXT NOT NULL);", 
             
-            // 4. tbl_evaluation
             "CREATE TABLE IF NOT EXISTS tbl_evaluation (" +
             "e_id INTEGER PRIMARY KEY AUTOINCREMENT," +
             "i_id INTEGER NOT NULL," +
@@ -57,9 +51,9 @@ public class main3 {
         
         for (String sql : tableCreationSql) {
             // We use updateRecord as it handles schema modification (CREATE TABLE)
-            con.updateRecord(sql);
+            con.executeDDL(sql);
         }
-        System.out.println("Database structure check complete.");
+        //System.out.println("Database structure check complete.");
     }
     
     public static void initializeSuperAdmin(config2 con, Scanner sc) {
@@ -101,6 +95,7 @@ public class main3 {
         System.out.println("\n--- ALL NON-SUPER USER ACCOUNTS ---");
         con.viewRecords(Query, headers, columns, SUPER_ADMIN_EMAIL);
     }
+    
  
     public static void main(String[] args) {
         config2 db = new config2();
@@ -146,7 +141,85 @@ public class main3 {
         sc.close();
     }
 
-    // --- (Rest of the main3.java code remains unchanged) ---
+  private static void displayAllUsers(config2 con, String userType) {
+        String sql;
+        String[] headers;
+        String[] columns;
+        
+        if (userType.equals("INSTRUCTOR")) {
+            System.out.println("\n--- ALL REGISTERED INSTRUCTORS ---");
+            // Concatenating first and last name
+            sql = "SELECT i_id, i_first_name || ' ' || i_last_name AS InstructorName FROM tbl_instructor";
+            headers = new String[]{"ID", "Name"};
+            columns = new String[]{"i_id", "InstructorName"};
+        } else if (userType.equals("STUDENT")) {
+            System.out.println("\n--- ALL REGISTERED STUDENTS ---");
+            // Concatenating first and last name
+            sql = "SELECT s_schoolID, s_first_name || ' ' || s_last_name AS StudentName, s_year_level FROM tbl_student";
+            headers = new String[]{"School ID", "Name", "Year Level"};
+            columns = new String[]{"s_schoolID", "StudentName", "s_year_level"};
+        } else {
+            return; // Do nothing if userType is invalid
+        }
+        
+        // Single line function call using the new config2.viewRecords(sql, headers, columns)
+        con.viewRecords(sql, headers, columns); 
+    }
+
+
+    // --- FIX 1 & 2: Updated manageInstructors ---
+    public static void manageInstructors(Scanner sc, config2 con) {
+        int choice;
+        do {
+            System.out.println("\n--- MANAGE INSTRUCTORS ---");
+            System.out.println("1. VIEW All Instructors");
+            System.out.println("2. DELETE Instructor");
+            System.out.println("3. UPDATE Instructor Info");
+            System.out.println("4. BACK TO MENU");
+            System.out.print("Enter choice: ");
+            choice = getIntInput(sc, 1, 4);
+
+            switch (choice) {
+                case 1:
+                    displayAllUsers(con, "INSTRUCTOR"); // FIX 1
+                    break;
+                case 2: // DELETE
+                    // FIX 1: Display list first
+                    displayAllUsers(con, "INSTRUCTOR"); 
+                    System.out.print("Enter Instructor ID to DELETE (or 0 to cancel): ");
+                    int deleteId = getIntInput(sc, 0, Integer.MAX_VALUE);
+                    if (deleteId > 0) {
+                        String deleteSql = "DELETE FROM tbl_instructor WHERE i_id = ?";
+                        int rows = con.deleteRecord(deleteSql, deleteId); // FIX 2
+                        if (rows > 0) {
+                            System.out.println("✅ Instructor ID " + deleteId + " deleted successfully!");
+                        } else {
+                            System.out.println("❌ Instructor ID " + deleteId + " not found or failed to delete."); // FIX 2
+                        }
+                    }
+                    break;
+                case 3: // UPDATE
+                    // FIX 1: Display list first
+                    displayAllUsers(con, "INSTRUCTOR");
+                    System.out.print("Enter Instructor ID to UPDATE (or 0 to cancel): ");
+                    int updateId = getIntInput(sc, 0, Integer.MAX_VALUE);
+                    if (updateId > 0) {
+                        // Assume logic to collect new details (newFirstName, newLastName, newPassword) is here
+                        
+                        String updateSql = "UPDATE tbl_instructor SET i_first_name = ?, i_last_name = ?, i_password = ? WHERE i_id = ?";
+                        // Placeholder values - you must replace these with user input variables
+                        int rows = con.updateRecord(updateSql, "NewFirst", "NewLast", "NewPass", updateId); // FIX 2
+                        
+                        if (rows > 0) {
+                            System.out.println("✅ Instructor ID " + updateId + " updated successfully!");
+                        } else {
+                            System.out.println("❌ Instructor ID " + updateId + " not found or no changes were made."); // FIX 2
+                        }
+                    }
+                    break;
+            }
+        } while (choice != 4);
+    }
     public static void userLoginFlow(Scanner sc, config2 con) {
         System.out.println("\n--- USER LOGIN (ADMIN/INSTRUCTOR/SUPER ADMIN) ---");
         System.out.print("ENTRE EMAIL: ");
@@ -799,6 +872,7 @@ public class main3 {
                 }break;
                 
                 case 3 :{
+                    displayAllUsers("INSTRUCTOR");
                     System.out.print("ENTER INSTRUCTOR ID TO UPDATE: ");
                     int id = getIntInput(sc, 1, Integer.MAX_VALUE);
                     System.out.print("Enter new first name (leave blank to keep current): ");
@@ -841,6 +915,7 @@ public class main3 {
                     }
                 }break;
                 case 4 : {
+                    displayAllUsers("INSTRUCTOR");
                     System.out.print("ENTER INSTRUCTOR ID TO DELETE: ");
                     int id = getIntInput(sc, 1, Integer.MAX_VALUE);
                     String sql = "DELETE FROM tbl_instructor WHERE i_id = ?";
@@ -912,6 +987,7 @@ public class main3 {
                 }
                 break;
                 case 4 : { 
+                    displayAllUsers("INSTRUCTOR");
                     System.out.print("ENTER SCHOOL ID TO UPDATE: ");
                     String id = sc.nextLine();
                     System.out.print("NEW FIRST NAME(leave blank to keep current): ");
@@ -950,6 +1026,7 @@ public class main3 {
                 }
                 break;
                 case 5 : { 
+                    displayAllUsers("INSTRUCTOR");
                     System.out.print("ENTER SCHOOL ID TO DELETE: ");
                     String id = sc.nextLine();
                     String sql = "DELETE FROM tbl_student WHERE s_schoolID = ?";
