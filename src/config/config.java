@@ -217,7 +217,7 @@ public class config {
         }
         System.out.println("----------------------------------------------------------------------------------------------------------------------------------------");
     }
-    // Inside config.java
+
 public java.util.List<java.util.Map<String, Object>> fetchRecords(String sqlQuery, Object... values) {
     java.util.List<java.util.Map<String, Object>> records = new java.util.ArrayList<>();
     PreparedStatement pstmt = null;
@@ -263,7 +263,84 @@ public java.util.List<java.util.Map<String, Object>> fetchRecords(String sqlQuer
 
     return records;
 }
+
+public int addRecordAndReturnId(String query, Object... params) {
+        int generatedId = -1;
+        try (Connection conn = connectDB();
+             PreparedStatement pstmt = conn.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
+
+            for (int i = 0; i < params.length; i++) {
+                pstmt.setObject(i + 1, params[i]);
+            }
+
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        generatedId = rs.getInt(1);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Error inserting record: " + e.getMessage());
+        }
+        return generatedId;
+    }
 }
 
+public static String hashPassword(String password) {
+    try {
+        java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+        byte[] hashedBytes = md.digest(password.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        // Convert byte array to hex string
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hashedBytes) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    } catch (java.security.NoSuchAlgorithmException e) {
+        System.out.println("Error hashing password: " + e.getMessage());
+        return null;
+    }
+}
+/* SAMPLE HASH PASS IN LOG IN
+System.out.print("Enter Email: ");
+String email = sc.next();
+System.out.print("Enter Password: ");
+String pass = sc.next();
 
 
+String hashedPass = dbConnect.hashPassword(pass);
+
+String sql = "SELECT * FROM tbl_user WHERE u_email = ? AND u_pass = ?";
+var result = con.fetchRecords(sql, email, hashedPass);
+
+if (!result.isEmpty()) {
+    var user = result.get(0);
+    System.out.println("Login successful!");
+    System.out.println("User Type: " + user.get("u_type"));
+} else {
+    System.out.println("Invalid email or password.");
+}
+*/
+
+/*SAMPLE HASH PASS IN REGISTER
+System.out.print("Enter Email: ");
+String email = sc.next();
+System.out.print("Enter Password: ");
+String pass = sc.next();
+System.out.print("Enter User Type: ");
+String type = sc.next();
+
+// Hash the password before saving
+String hashedPass = dbConnect.hashPassword(pass);
+
+String sql = "INSERT INTO tbl_user(u_email, u_pass, u_type, u_status) VALUES(?, ?, ?, ?)";
+con.addRecord(sql, email, hashedPass, type, "Active");
+
+System.out.println("User registered successfully!");
+
+*/
