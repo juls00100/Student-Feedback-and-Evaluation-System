@@ -1,199 +1,171 @@
-package main4;
+package Main2;
 
 import config.config;
 import java.util.InputMismatchException;
 import java.util.Scanner;
-import java.util.List;
+import java.util.List; 
 import java.util.Map;
-import java.time.Year; 
 
-public class main4 {
+
+public class Main2 {
+
+    // --- NEW: Super Admin Logic ---
+    // This email is the permanent, protected identifier for the system account.
+    private static final String SUPER_ADMIN_EMAIL = "developer@system.com"; 
+    
+    /**
+     * Initializes the Super Admin account if it does not already exist in the database.
+     * If missing, it prompts the user (developer) to set the name and password once.
+     */
+    public static void initializeSuperAdmin(config con, Scanner sc) {
+        // Check if Super Admin exists using the unique email identifier
+        String checkQry = "SELECT u_id FROM tbl_user WHERE u_email = ?";
+        List<Map<String, Object>> result = con.fetchRecords(checkQry, SUPER_ADMIN_EMAIL);
+
+        if (result.isEmpty()) {
+            System.out.println("\n=======================================================");
+            System.out.println(">>> FIRST RUN SETUP: SUPER ADMIN ACCOUNT CREATION <<<");
+            System.out.println("The protected Super Admin account is missing.");
+            System.out.println("This account will be created with the email: " + SUPER_ADMIN_EMAIL);
+            
+            System.out.print("Enter your Name (e.g., System Developer): ");
+            String saName = sc.nextLine();
+            
+            System.out.print("Set the Super Admin Password: ");
+            String saPass = sc.nextLine();
+            
+            // Create the Super Admin account in the database
+            String insertQry = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES (?, ?, ?, ?, ?)";
+            // Using 'SuperAdmin' as the type. This user is automatically Approved.
+            con.addRecord(insertQry, saName, SUPER_ADMIN_EMAIL, "SuperAdmin", "Approved", saPass);
+            System.out.println("SUCCESS: Super Admin account initialized and stored in the database.");
+            System.out.println("=======================================================\n");
+        }
+    }
+    // --- END Super Admin Logic ---
+
+
     private static void viewInstructors(Scanner sc, String[] instructors) {
-        System.out.println("\n--- INSTRUCTOR LIST ---");
+            System.out.println("\n--- INSTRUCTOR LIST ---");
         for (int i = 0; i < instructors.length; i++) {
             System.out.println((i + 1) + ". " + instructors[i]);
         }
     }
 
-    private static int getInstructorIdByName(config db, String fullName) {
-        String[] parts = fullName.split(" ", 2);
-        if (parts.length < 2) {
-            System.err.println("Error: Could not parse instructor name: " + fullName);
-            return -1;
-        }
-        String firstName = parts[0];
-        String lastName = parts[1];
-        
-        String sql = "SELECT i_id FROM tbl_instructor WHERE i_first_name = ? AND i_last_name = ?";
-        List<Map<String, Object>> result = db.fetchRecords(sql, firstName, lastName);
-
-        if (!result.isEmpty()) {
-            Object idObj = result.get(0).get("i_id");
-            try {
-                return ((Number) idObj).intValue();
-            } catch (Exception e) {
-                System.err.println("Error: Instructor ID is in an invalid format for " + fullName);
-                return -1;
-            }
-        }
-        System.out.println("Error: Instructor '" + fullName + "' not found in the database.");
-        return -1;
-    }
-
     public static void main(String[] args) {
-    // ... inside main(String[] args)
-    config db = new config();
-    db.connectDB();
-    Scanner sc = new Scanner(System.in);
-    System.out.println("Sweetiest Welcome to you! In my Evaluation System");
+        config db = new config();
+        db.connectDB();
+        
+        Scanner sc = new Scanner(System.in);
+        
+        // NEW: Initialize Super Admin on startup (prompts for credentials if not found)
+        initializeSuperAdmin(db, sc); 
+        
+        System.out.println("Sweetiest Welcome to you! In my Evaluation System");
 
-    int mainChoice;
-    do {
-        System.out.println("\n--- MAIN MENU ---");
-        System.out.println("1. STUDENT Login/Register");
-        System.out.println("2. USER Login (Admin/Instructor)");
-        System.out.println("3. USER Register (Pending)");
-        System.out.println("4. EXIT");
-        System.out.println("5. QUICK CREATE ADMIN (DEV ONLY)");
-        System.out.println("6. VIEW ALL USER RECORDS (SQL DEBUG)"); // <--- NEW DEBUG OPTION
-        System.out.print("Choose an option: ");
+        int mainChoice;
+        do {
+            System.out.println("\n--- MAIN MENU ---");
+            System.out.println("1. STUDENT Login/Register"); 
+            System.out.println("2. USER Login (Admin/Instructor/SuperAdmin)"); 
+            System.out.println("3. USER Register"); 
+            System.out.println("4. EXIT");
+            System.out.print("Choose an option: ");
 
-        mainChoice = getIntInput(sc, 1, 6); // <--- Updated range 1 to 6
+            mainChoice = getIntInput(sc, 1, 4);
 
-        switch (mainChoice) {
-            case 1:
-                // studentFlow handles registration and login, returning the ID
-                String loggedInStudentID = studentFlow(sc, db);
-                // Only proceed to the menu if a valid ID was returned (login successful)
-                if (loggedInStudentID != null) {
-                    studentMenu(sc, db, loggedInStudentID);
-                }
-                break;
-            case 2:
-                userLoginFlow(sc, db);
-                break;
-            case 3:
-                userRegistrationFlow(sc, db);
-                break;
-            case 4:
-                System.out.println("YOU CHOSEN EXIT. SEE YOU AGAIN!");
-                break;
-            case 5:
-                quickAdminRegistrationFlow(sc, db);
-                break;
-            case 6:
-                viewAllUsers(db);
-                break;
-        }
-    } while (mainChoice != 4);
-    sc.close();
-}
-    
-    public static void viewAllUsers(config con) {
-    System.out.println("\n--- 🕵️ ALL USER RECORDS (RAW DATA) 🕵️ ---");
-    System.out.print("⚠️ WARNING: This displays passwords. Enter 'YES' to continue: ");
-    Scanner sc = new Scanner(System.in);
-    String confirm = sc.nextLine().trim().toUpperCase();
-
-    if (!confirm.equals("YES")) {
-        System.out.println("Action cancelled. Returning to Main Menu.");
-        return;
-    }
-    
-    // We select all known columns, plus the primary key (PK) as a placeholder.
-    String Query = "SELECT * FROM tbl_user";
-    // NOTE: If your config.viewRecords cannot handle 'SELECT *', change the query to:
-    // String Query = "SELECT id, u_name, u_email, u_type, u_status, u_pass FROM tbl_user";
-    
-    // We are just guessing the column names here for display, but the raw data will show the actual column headers.
-    String[] headers = {"PK_ID", "Name", "Email", "Type", "Status", "Password"};
-    String[] columns = {"id", "u_name", "u_email", "u_type", "u_status", "u_pass"};
-    
-    System.out.println("\n--- TBL_USER RECORDS ---");
-    con.viewRecords(Query, headers, columns);
-    
-    System.out.println("\n--- END OF RECORDS ---");
-    System.out.println("The first column header in the table above is the real Primary Key name.");
-    System.out.println("Use that exact name (e.g., 'pk' or 'user_id') to fix the error in userLoginFlow.");
-    System.out.println("\nPress Enter to return to Main Menu...");
-    sc.nextLine();
-}
-    
-    public static void userLoginFlow(Scanner sc, config con) {
-    System.out.println("\n--- USER LOGIN (ADMIN/INSTRUCTOR) ---");
-    System.out.print("ENTRE EMAIL: ");
-    String em = sc.nextLine();
-    System.out.print("ENTER PASSWORD: ");
-    String pas = sc.nextLine();
-
-    String qry = "SELECT * FROM tbl_user WHERE u_email = ? AND u_pass = ?";
-
-    List<Map<String, Object>> result = con.fetchRecords(qry, em, pas);
-
-    if (result.isEmpty()) {
-        System.out.println("INVALID CREDENTIALS");
-    } else {
-        System.out.println("**********************************************");
-        System.out.println("*** JULIOS CAMPANER*** ");
-        System.out.println(" **********************************************");
-        Map<String, Object> user = result.get(0);
-        String stat = user.get("u_status").toString();
-        String type = user.get("u_type").toString();
-        String name = user.get("u_name").toString();
-
-        if (stat.equals("Pending")) {
-            System.out.println("YOU'RE ACCOUNT IS PENDING. PLEASE TELL ADMIN THANKLYOUU.");
-        } else if (stat.equals("Approved")) {
-            System.out.println("LOGIN SUCCESS! Welcome, " + name + "!");
-
-            Object userIdObj = user.get("id"); 
-            String foundKey = null;
-
-            for (String key : user.keySet()) {
-                // Look for 'id', 'u_id', 'user_id', etc., regardless of case.
-                if (key.toLowerCase().contains("id")) { 
-                    userIdObj = user.get(key);
-                    foundKey = key;
+            switch (mainChoice) {
+                case 1:
+                    // NOTE: Student registration currently does not require Admin approval.
+                    String loggedInStudentID = studentFlow(sc, db); 
+                    if (loggedInStudentID != null) {
+                        studentMenu(sc, db, loggedInStudentID);
+                    }
                     break;
-                }
+                case 2:
+                    userLoginFlow(sc, db);
+                    break;
+                case 3:
+                    // Admin/Instructor registration is set to Pending by userRegistrationFlow
+                    userRegistrationFlow(sc, db);
+                    break;
+                case 4:
+                    System.out.println("YOU CHOSEN EXIT. SEE YOU AGAIN!");
+                    break;
             }
-            // ------------------------------------------------------------------------------------------------
+        } while (mainChoice != 4);
+        sc.close();
+    }
 
-            try{
-                if (userIdObj == null) {
-                    throw new NullPointerException("The column key 'id' was not found in the record. Check your database schema.");
-                }
+    public static void userLoginFlow(Scanner sc, config con) {
+        System.out.println("\n--- USER LOGIN (ADMIN/INSTRUCTOR/SUPER ADMIN) ---");
+        System.out.print("ENTRE EMAIL: ");
+        String em = sc.nextLine(); 
+        System.out.print("ENTER PASSWORD: ");
+        String pas = sc.nextLine(); 
 
-                int userId = ((Number) userIdObj).intValue();
+        String qry = "SELECT * FROM tbl_user WHERE u_email = ? AND u_pass = ?";
+        
+        List<Map<String, Object>> result = con.fetchRecords(qry, em, pas); 
 
-                if (type.equals("Admin")) {
-                    adminDashboard(sc, con, userId);
-                } else if (type.equals("Instructor")) {
-                    instructorMainActions(sc, con, userId);
-                } else {
-                    System.out.println("USER UNKNOWN.");
-                }
-            }
-            catch (Exception e) { // Catch all exceptions related to ID retrieval/conversion
-                System.out.println("ERROR: Could not process User ID.");
-                System.out.println("Reason: " + e.getMessage());
-                System.out.println("The database schema has an unusual primary key name. You must view the 'tbl_user' schema to find the correct column name.");
-            }
+        if (result.isEmpty()) {
+            System.out.println("INVALID CREDENTIALS");
         } else {
-            System.out.println("Your account status is: " + stat + ". Please initiate to contact the Admin.");
+            System.out.println("**********************************************");
+            System.out.println("***WELCOME*** ");
+            System.out.println(" **********************************************");
+            Map<String, Object> user = result.get(0);
+            String stat = user.get("u_status").toString();
+            String type = user.get("u_type").toString();   
+            String name = user.get("u_name").toString();   
+
+            if (stat.equals("Pending")) {
+                // Account Approval Requirement Check
+                System.out.println("YOU'RE ACCOUNT IS PENDING. PLEASE TELL ADMIN THANKLYOUU.");
+            } else if (stat.equals("Approved")) {
+                System.out.println("LOGIN SUCCESS! Welcome, " + name + "!");
+                
+                Object userIdObj = user.get("u_id");
+                
+                try{
+                    // FIX: Safely convert the Object (which might be String or Long) to an int
+                    int userId = Integer.parseInt(String.valueOf(userIdObj)); 
+                
+                    if (type.equals("Admin")) {
+                        adminDashboard(sc, con, userId);
+                    } else if (type.equals("SuperAdmin")) { // Super Admin Login
+                        superAdminDashboard(sc, con, userId);
+                    } else if (type.equals("Instructor")) {
+                        instructorMainActions(sc, con, userId);
+                    } else {
+                        System.out.println("USER UNKNOWN.");
+                    }
+                } 
+                catch (NumberFormatException | NullPointerException e) { 
+                    System.out.println("ERROR: Could not process User ID. Data corruption suspected. Log in failed.");
+                } 
+            } else { 
+                System.out.println("Your account status is: " + stat + ". Please initiate to contact the Admin.");
+            }
         }
     }
-}
+
     public static void userRegistrationFlow(Scanner sc, config con) {
         System.out.println("\n--- USER REGISTRATION (ADMIN/INSTRUCTOR) ---");
         System.out.print("Enter user name: ");
         String name = sc.nextLine();
         String email;
-
+        
         while (true) {
             System.out.print("Enter user email: ");
             email = sc.nextLine();
-
+            
+            // Do not allow registration of the Super Admin email
+            if (email.equalsIgnoreCase(SUPER_ADMIN_EMAIL)) {
+                System.out.println("This email is reserved for system use.");
+                continue;
+            }
+            
             String qry = "SELECT * FROM tbl_user WHERE u_email = ?";
             List<Map<String, Object>> result = con.fetchRecords(qry, email);
 
@@ -206,36 +178,71 @@ public class main4 {
 
         System.out.print("Enter user Type (1 - Admin / 2 - Instructor): ");
         int typeChoice = getIntInput(sc, 1, 2);
-
+        
         String tp = (typeChoice == 1) ? "Admin" : "Instructor";
-
+        
         System.out.print("Enter Password: ");
         String pass = sc.nextLine();
-
+        
+        // All new Admin/Instructor accounts start as 'Pending'
         String sql = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES (?, ?, ?, ?, ?)";
         con.addRecord(sql, name, email, tp, "Pending", pass);
-
+        
         System.out.println("\nREGISTRATION SUCCESSFUL! Your account is **Pending** Admin approval.");
         System.out.println("You will be able to log in once your account is Approved.");
-    }// ... (Place this new method after userRegistrationFlow or similar helper methods)
-// ... (Place this new method after userRegistrationFlow)
+    }
+    
+    // Super Admin Dashboard
+    public static void superAdminDashboard(Scanner sc, config con, int adminId) {
+        int choice;
+        do {
+            System.out.println("\n===== SUPER ADMIN DASHBOARD =====");
+            System.out.println("1. Manage User Approvals and Deletions"); // Can manage all users including Admins
+            System.out.println("2. Manage Students"); 
+            System.out.println("3. Manage Instructors"); 
+            System.out.println("4. Manage Evaluations"); 
+            System.out.println("5. Logout");
+            System.out.print("Enter choice: ");
+            
+            choice = getIntInput(sc, 1, 5);
+            
+            switch (choice) {
+                case 1:
+                    manageUserApprovals(sc, con, true); // true indicates Super Admin (allows deletion of Admins)
+                    break;
+                case 2:
+                    manageStudents(sc, con);
+                    break;
+                case 3:
+                    manageInstructors(sc, con);
+                    break;
+                case 4:
+                    manageEvaluations(sc, con);
+                    break;
+                case 5:
+                    System.out.println("Logging out from Super Admin Dashboard...");
+                    break;
+            }
+        } while (choice != 5);
+    }
+    // End Super Admin Dashboard
 
     public static void adminDashboard(Scanner sc, config con, int adminId) {
         int choice;
         do {
             System.out.println("\n===== ADMIN DASHBOARD =====");
-            System.out.println("1. Approve Pending Accounts");
-            System.out.println("2. Manage Students");
-            System.out.println("3. Manage Instructors");
-            System.out.println("4. Manage Evaluations");
+            System.out.println("1. Manage User Approvals"); // Restricted from deleting Admins/SuperAdmin
+            System.out.println("2. Manage Students"); 
+            System.out.println("3. Manage Instructors"); 
+            System.out.println("4. Manage Evaluations"); 
             System.out.println("5. Logout");
             System.out.print("Enter choice: ");
-
+            
             choice = getIntInput(sc, 1, 5);
-
+            
             switch (choice) {
                 case 1:
-                    approveAccounts(sc, con);
+                    manageUserApprovals(sc, con, false); // false indicates regular Admin
                     break;
                 case 2:
                     manageStudents(sc, con);
@@ -252,59 +259,503 @@ public class main4 {
             }
         } while (choice != 5);
     }
-
     
-    private static void manageEvaluations(Scanner sc, config db) {
+    // MANAGE USER APPROVALS AND DELETION
+    public static void manageUserApprovals(Scanner sc, config con, boolean isSuperAdmin) {
         int choice;
         do {
-            System.out.println("\n--- MANAGE EVALUATIONS ---");
-            System.out.println("1. VIEW ALL EVALUATIONS");
-            System.out.println("2. VIEW EVALUATION BY INSTRUCTOR");
-            System.out.println("3. DELETE EVALUATION");
+            System.out.println("\n--- MANAGE USER ACCOUNTS ---");
+            System.out.println("1. VIEW ALL USER ACCOUNTS (Excluding System Dev)");
+            System.out.println("2. APPROVE PENDING ACCOUNT");
+            if (isSuperAdmin) {
+                 System.out.println("3. DELETE USER (Includes Admin/Instructor)");
+            } else {
+                 System.out.println("3. DELETE USER (Instructors Only)");
+            }
+           
             System.out.println("4. BACK TO MENU");
-            System.out.print("Enter your choice: ");
-
+            System.out.print("Enter choice: ");
+            
             choice = getIntInput(sc, 1, 4);
-
+            
             switch (choice) {
-                case 1: {
-                    String sql = "SELECT t1.e_id, t3.s_schoolID, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
-                                 "e_average_rating, e_remarks, e_year, e_sem " +
-                                 "FROM tbl_evaluation t1 " +
-                                 "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
-                                 "JOIN tbl_student t3 ON t1.s_schoolID = t3.s_schoolID";
-                    String[] headers = {"Eval ID", "Student ID", "Instructor", "Avg Rating", "Remarks", "Year", "Sem"};
-                    String[] columns = {"e_id", "s_schoolID", "instructor_name", "e_average_rating", "e_remarks", "e_year", "e_sem"};
-                    db.viewRecords(sql, headers, columns);
-                }
-                break;
-                case 2: {
-                    System.out.print("ENTER INSTRUCTOR ID TO VIEW EVALUATIONS: ");
-                    int id = getIntInput(sc, 1, Integer.MAX_VALUE);
-                    String sql = "SELECT t1.e_id, t3.s_schoolID, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
-                                 "e_average_rating, e_remarks, e_year, e_sem " +
-                                 "FROM tbl_evaluation t1 " +
-                                 "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
-                                 "JOIN tbl_student t3 ON t1.s_schoolID = t3.s_schoolID " +
-                                 "WHERE t1.i_id = ?";
-                    String[] headers = {"Eval ID", "Student ID", "Instructor", "Avg Rating", "Remarks", "Year", "Sem"};
-                    String[] columns = {"e_id", "s_schoolID", "instructor_name", "e_average_rating", "e_remarks", "e_year", "e_sem"};
-                    db.viewRecords(sql, headers, columns, id);
-                }
-                break;
-                case 3: {
-                    System.out.print("ENTER EVALUATION ID TO DELETE: ");
-                    int id = getIntInput(sc, 1, Integer.MAX_VALUE);
-                    String sql = "DELETE FROM tbl_evaluation WHERE e_id = ?";
-                    db.deleteRecord(sql, id);
-                }
-                break;
-                case 4: System.out.println("RETURNING TO ADMIN MENU...");
-                break;
+                case 1: 
+                    // View all non-Super Admin users regardless of status
+                    String Query = "SELECT u_id, u_name, u_email, u_type, u_status FROM tbl_user WHERE u_email != ?";
+                    String[] headers = {"ID", "Name", "Email", "Type", "Status"};
+                    String[] columns = {"u_id", "u_name", "u_email", "u_type", "u_status"};
+                    
+                    System.out.println("\n--- ALL NON-SUPER USER ACCOUNTS ---");
+                    con.viewRecords(Query, headers, columns, SUPER_ADMIN_EMAIL); 
+                    break;
+                case 2:
+                    System.out.println("\n--- APPROVE PENDING USER ACCOUNTS ---");
+                    String pendingQuery = "SELECT u_id, u_name, u_email, u_type FROM tbl_user WHERE u_status = 'Pending' AND u_email != ?";
+                    String[] pendHeaders = {"ID", "Name", "Email", "Type"};
+                    String[] pendColumns = {"u_id", "u_name", "u_email", "u_type"};
+                    
+                    con.viewRecords(pendingQuery, pendHeaders, pendColumns, SUPER_ADMIN_EMAIL); 
+
+                    System.out.print("Enter ID to Approve (or 0 to cancel): ");
+                    int ids = getIntInput(sc, 0, Integer.MAX_VALUE);
+                    
+                    if (ids > 0) {
+                        String sql = "UPDATE tbl_user SET u_status = ? WHERE u_id = ? AND u_status = 'Pending'";
+                        con.updateRecord(sql, "Approved", ids);
+                        System.out.println("User ID " + ids + " has been **APPROVED**.");
+                    } else {
+                        System.out.println("Account approval cancelled.");
+                    }
+                    break;
+                case 3:
+                    System.out.println("\n--- DELETE USER ACCOUNT ---");
+                    System.out.print("Enter User ID to Delete (or 0 to cancel): ");
+                    int idToDelete = getIntInput(sc, 0, Integer.MAX_VALUE);
+
+                    if (idToDelete > 0) {
+                        deleteUser(con, idToDelete, isSuperAdmin);
+                    }
+                    break;
+                case 4:
+                    System.out.println("Returning to Dashboard...");
+                    break;
             }
         } while (choice != 4);
     }
+    
+    /**
+     * Handles the deletion of a user and enforces the Super Admin protection rule.
+     * @param con Database config
+     * @param userIdToDelete The ID of the user to delete
+     * @param isSuperAdmin If the caller is a Super Admin
+     */
+    private static void deleteUser(config con, int userIdToDelete, boolean isSuperAdmin) {
+        String getEmailQry = "SELECT u_email, u_type FROM tbl_user WHERE u_id = ?";
+        List<Map<String, Object>> userResult = con.fetchRecords(getEmailQry, userIdToDelete);
+        
+        if (userResult.isEmpty()) {
+            System.out.println("Error: User ID not found.");
+            return;
+        }
+        
+        String userEmail = userResult.get(0).get("u_email").toString();
+        String userType = userResult.get(0).get("u_type").toString();
+        
+        if (userEmail.equalsIgnoreCase(SUPER_ADMIN_EMAIL)) {
+            System.out.println("-----------------------------------------------------------------------");
+            System.out.println(">> ERROR: THE SUPER ADMIN ACCOUNT CANNOT BE DELETED. IT IS PROTECTED. <<");
+            System.out.println("-----------------------------------------------------------------------");
+            return;
+        }
+        
+        if (!isSuperAdmin && userType.equals("Admin")) {
+             System.out.println("---------------------------------------------------------------");
+             System.out.println(">> ERROR: Regular Admins cannot delete other Admin accounts. <<");
+             System.out.println("---------------------------------------------------------------");
+             return;
+        }
 
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Are you sure you want to delete User ID " + userIdToDelete + " (" + userEmail + ")? (Y/N): ");
+        String confirmation = sc.nextLine().trim().toUpperCase();
+
+        if (confirmation.equals("Y")) {
+            String sql = "DELETE FROM tbl_user WHERE u_id = ?";
+            con.deleteRecord(sql, userIdToDelete);
+            System.out.println("User ID " + userIdToDelete + " has been **DELETED**.");
+        } else {
+            System.out.println("Deletion cancelled.");
+        }
+    }
+
+
+    private static void instructorMainActions(Scanner sc, config db, int instructorID) {
+        int choice;
+        do {
+            System.out.println("\n--- INSTRUCTOR MENU ---");
+            System.out.println("1. VIEW MY EVALUATIONS");
+            System.out.println("2. BACK TO MAIN MENU");
+            System.out.print("Enter your choice: ");
+            
+            choice = getIntInput(sc, 1, 2);
+
+            switch (choice) {
+                case 1:
+                    viewMyEvaluations(sc, db, instructorID);
+                    break;
+                case 2:
+                    System.out.println("Logging out...");
+                    break;
+            }
+        } while (choice != 2);
+    }
+    
+    private static void instructorMenu(Scanner sc, config db) {
+        // NOTE: Commented out to avoid confusion
+    }
+    
+    // ... (getIntInput method)
+    private static int getIntInput(Scanner sc, int min, int max) {
+        int input;
+        while (true) {
+            try {
+                // Check if there's an int to read
+                if(sc.hasNextInt()){
+                    input = sc.nextInt();
+                    sc.nextLine(); // Consume the newline
+                    if (input < min || input > max) {
+                        System.out.print("PLEASE ENTER A NUMBER BETWEEN " + min + " AND " + max + " ");
+                    } else {
+                        return input;
+                    }
+                } else {
+                    // Handle non-integer input
+                    System.out.print("PROPERLY CHECK YOUR INPUTS... ");
+                    System.out.println("PLEASE ENTER A NUMBER:");
+                    sc.nextLine(); // Consume the invalid input
+                }
+            } catch (InputMismatchException e) {
+                System.out.print("PROPERLY CHECK YOUR INPUTS... ");
+                System.out.println("PLEASE ENTER A NUMBER:");
+                sc.nextLine(); 
+            }
+        }
+    }
+    
+    // (Existing studentFlow method)
+    public static String studentFlow(Scanner sc, config db) {
+        System.out.println("\n--- STUDENT LOGIN/REGISTRATION ---");
+        System.out.print("NEW STUDENT? (Y for yes / N for no): ");
+        
+        String newStudent = sc.nextLine().trim().toUpperCase();
+        
+        String studentSchoolID = null; 
+        String studentName = "";
+
+        if (newStudent.equals("Y")) {
+            System.out.print("ENTER YOUR SCHOOL ID:");
+            studentSchoolID = sc.nextLine();
+            System.out.print("YOUR FIRST NAME: ");
+            String firstName = sc.nextLine();
+            System.out.print("YOUR LAST NAME: ");
+            String lastName = sc.nextLine();
+            System.out.print("YOUR EMAIL: ");
+            String email = sc.nextLine();
+            System.out.print("YEAR LEVEL (1,2,3, or 4): ");
+            String yearLevel = sc.nextLine();
+            
+            // NOTE: Must check if School ID already exists before registering
+            String checkQry = "SELECT s_schoolID FROM tbl_student WHERE s_schoolID = ?";
+            if (!db.fetchRecords(checkQry, studentSchoolID).isEmpty()) {
+                System.out.println("ERROR: A student with School ID " + studentSchoolID + " already exists.");
+                return null;
+            }
+
+            // Student registration now includes s_status set to 'Pending'
+            String sqlStudent = "INSERT INTO tbl_student (s_schoolID, s_first_name, s_last_name, s_email, s_year_level, s_status) VALUES (?,?,?,?,?,?)";
+            db.addRecord(sqlStudent, studentSchoolID, firstName, lastName, email, yearLevel, "Pending");
+
+            studentName = firstName + " " + lastName;
+            System.out.println("\nREGISTRATION SUCCESSFUL, " + studentName + "!");
+            System.out.println("Your account status is **PENDING**. Please wait for an Admin to approve your registration.");
+            return null; // Return null so they can't proceed to the menu yet
+            
+        } else {
+            boolean valid = false;
+            while (!valid) {
+                System.out.print("Enter your School ID: ");
+                studentSchoolID = sc.nextLine();
+                System.out.print("Enter your Full Name: ");
+                studentName = sc.nextLine();
+
+                // Modified query to also fetch s_status
+                String sqlCheck = "SELECT s_schoolID, s_status FROM tbl_student WHERE s_schoolID = ? AND s_first_name || ' ' || s_last_name = ?";
+                List<Map<String, Object>> studentResult = db.fetchRecords(sqlCheck, studentSchoolID, studentName);
+
+                if (!studentResult.isEmpty()) {
+                    String status = studentResult.get(0).get("s_status").toString();
+                    
+                    if (status.equals("Approved")) {
+                        valid = true;
+                        System.out.println("SUCCESSFUL LOG-IN for, " + studentName + "!");
+                    } else {
+                        // Reject login if status is not Approved (e.g., Pending)
+                        System.out.println("Login failed. Your account status is: **" + status + "**.");
+                        System.out.println("Please wait for an Admin to approve your registration.");
+                        // Exit the login loop without setting 'valid' to true
+                        return null; 
+                    }
+                } else {
+                    System.out.println("Invalid School ID or name. Try again or register as a new student.");
+                }
+            }
+        }
+    return studentSchoolID;
+    }
+
+    // (Existing studentMenu method)
+    private static void studentMenu (Scanner sc, config db, String studentSchoolID){
+        int choyens;
+    do {
+        System.out.println("\n--- STUDENT MENU ---");
+        System.out.println("1. CREATE EVALUATION");
+        System.out.println("2. VIEW EVALUATIONS");
+        System.out.println("3. EDIT EVALUATION");
+        System.out.println("4. DELETE EVALUATION");
+        System.out.println("5. VIEW ACCOUT INFO.");
+        System.out.println("6. EXIT");
+
+
+        System.out.print("Choose an option: ");
+
+        choyens = getIntInput(sc, 1, 6);
+
+        switch (choyens) {
+            case 1:
+                studentEvaluation(sc, db, studentSchoolID);
+                break;
+                
+             case 2:
+                viewEvaluation(sc, db, studentSchoolID);
+                break;
+                
+             case 3: 
+                editEvaluation(sc, db, studentSchoolID);
+                break;
+             
+             case 4: 
+                deleteEvaluation(sc, db, studentSchoolID);
+                break;
+             
+             case 5:
+                 viewMyAcc(sc, db, studentSchoolID);
+                 break;
+                 
+             case 6:
+                System.out.println("Returning to Main Menu...");
+                break;
+        }
+      
+    } while (choyens != 6);
+  
+}
+       
+    // (Existing studentEvaluation method)
+    private static void studentEvaluation(Scanner sc, config db, String studentSchoolID){
+        
+        String[] instructors = {
+            "Ching Archival", "Dalley Alterado", "Rose Gamboa",
+            "Aries Dajay", "Fil Aripal", "Joseph Lanza",
+            "Ramel Obejero", "Michael John Bustamante", "Aries Dajay", "Zillah Nodalo"
+        };
+        String[] courses = {
+            "ART APPRECIATION", "ECONOMICS, TAXATION, AND LAND REFORMS", "LOGIC",
+            "INFORMATION MANAGEMENT", "PC ASSEMBLING AND DISASSEMBLING",
+            "PRINCIPLES OF ACCOUNTING", "PE3", "OBJECT ORIENTED PROGRAMMING (OOP1)",
+            "DATA STRUCTURES AND ALGORITHM", "CHRISTOLOGY"
+        };
+
+
+        System.out.println("--- INSTRUCTOR SELECTION ---");
+    
+        viewInstructors(sc, instructors);
+        System.out.print("Enter the number of the Instructor you want to evaluate: ");
+        int instructorChoice = getIntInput(sc, 1, instructors.length);
+        String selectedInstructor = instructors[instructorChoice - 1];
+
+
+
+        System.out.println("\n--- COURSE SELECTION ---");
+        for (int i = 0; i < courses.length; i++) {
+            System.out.println((i + 1) + ". " + courses[i]);
+        }
+        System.out.print("Enter the number of the Course/Subject taught by " + selectedInstructor + ": ");
+        int courseChoice = getIntInput(sc, 1, courses.length);
+        String selectedCourse = courses[courseChoice - 1];
+        
+
+        System.out.println("\n--- EVALUATION ---");
+        System.out.println("YOU ARE EVALUATING **" + selectedInstructor + "** FOR THE COURSE **" + selectedCourse + "**.");
+    
+        System.out.println("\n--- RATING SCALE ---");
+        System.out.println("5 - Observed to a large extent");
+        System.out.println("4 - Observed");
+        System.out.println("3 - Observed to a minimal extent");
+        System.out.println("2 - Much to be desired upon");
+        System.out.println("1 - Not Observed");
+
+        String[] questions = {
+            "Class activities are meaningful and directly related to the course material.",
+            "The instructor is adaptable and adjusts their approach to meet individual student needs.",
+            "The instructor provides clear instructions and expectations for all assignments and exams.",
+            "The instructor actively involves students in the learning process.",
+            "Class time is used efficiently and effectively by the instructor.",
+            "Assignments and homework are returned promptly with feedback.",
+            "The instructor has clear procedures in place that prevent time from being wasted."
+        };
+
+        int totalRating = 0;
+        for (int i = 0; i < questions.length; i++) {
+            System.out.println("\nQuestion " + (i + 1) + " (for " + selectedCourse + "): " + questions[i]);
+            System.out.print("Your rating (1-5): ");
+            int rating = getIntInput(sc, 1, 5);
+            totalRating += rating;
+        }
+
+        double averageRating = (double) totalRating / questions.length;
+        String formattedRating = String.format("%.2f", averageRating);
+    
+        
+        System.out.print("\nPROVIDE COMMENTS AND RECOMMENDATIONS (for " + selectedInstructor + "): ");
+        String comments = sc.nextLine();
+
+        String currentYear = "2025";
+        String currentSem = "1";
+
+        
+        String sqlEvaluation = "INSERT INTO tbl_evaluation (i_id, e_average_rating, e_year, e_sem, e_remarks, s_schoolID) VALUES (?, ?, ?, ?, ?, ?)";
+        db.addRecord(sqlEvaluation, String.valueOf(instructorChoice), formattedRating, currentYear, currentSem, comments, studentSchoolID);
+
+        System.out.println("\nTHANKS FOR COMPLETING THE SURVEY FOR " + selectedInstructor + " IN " + selectedCourse + "!");
+        System.out.println("REDIRECTING TO THE MENU...");
+    }
+
+    // (Existing viewEvaluation method)
+    private static void viewEvaluation(Scanner sc, config db, String studentSchoolID) { 
+        System.out.println("\n--- VIEW MY EVALUATIONS (ID: " + studentSchoolID + ") ---");
+
+        if (studentSchoolID == null || studentSchoolID.isEmpty()) {
+            System.out.println("ERROR: Could not retrieve your School ID. Please re-login.");
+            System.out.println("\nPress Enter to continue...");
+            sc.nextLine();
+            return;
+        }
+
+        
+    String sql = "SELECT t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
+                 "e_average_rating, e_year, e_sem, e_remarks " +
+                 "FROM tbl_evaluation t1 " +
+                 "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
+                 "WHERE t1.s_schoolID = ?";
+
+        String[] headers = {"Instructor", "Avg Rating", "Year", "Semester", "Remarks"};
+        String[] columns = {"instructor_name", "e_average_rating", "e_year", "e_sem", "e_remarks"};
+
+        db.viewRecords(sql, headers, columns, studentSchoolID);
+
+        System.out.println("\nPress Enter to continue...");
+        sc.nextLine();
+    }
+    
+    // (Existing editEvaluation method)
+    private static void editEvaluation(Scanner sc, config db, String studentSchoolID) {
+    System.out.println("\n--- EDIT EVALUATION (ID: " + studentSchoolID + ") ---");
+    
+    String sqlView = "SELECT t1.e_id, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
+                     "e_average_rating, e_remarks " +
+                     "FROM tbl_evaluation t1 " +
+                     "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
+                     "WHERE t1.s_schoolID = ?";
+
+    String[] headers = {"Eval ID", "Instructor", "Avg Rating", "Remarks"};
+    String[] columns = {"e_id", "instructor_name", "e_average_rating", "e_remarks"};
+
+    System.out.println("YOUR EVALUATIONS:");
+    db.viewRecords(sqlView, headers, columns, studentSchoolID);
+    
+    System.out.print("\nEnter the Evaluation ID (Eval ID) you want to edit: ");
+    int evalIdToEdit = getIntInput(sc, 1, Integer.MAX_VALUE);
+    
+    System.out.println("\n--- EDITING EVALUATION ID " + evalIdToEdit + " ---");
+    System.out.print("Enter NEW COMMENTS and RECOMMENDATIONS (Current will be replaced): ");
+    String newComments = sc.nextLine();
+    
+    if (newComments.isEmpty()) {
+        System.out.println("YOU CHANGED NOTHING1");
+        System.out.println("\nPRESSS ENTER TO CONTINUUEE..");
+        sc.nextLine();
+        return;
+    }
+
+    String sqlUpdate = "UPDATE tbl_evaluation SET e_remarks = ? WHERE e_id = ? AND s_schoolID = ?";
+    
+    db.updateRecord(sqlUpdate, newComments, String.valueOf(evalIdToEdit), studentSchoolID);
+    
+    System.out.println("EVALUATION ID " + evalIdToEdit + " HAVE BEEN SUCCESSFULLY UPDATEDD.");
+
+    System.out.println("\nPREESS ENTER TO CONTINUEEE...");
+    sc.nextLine();
+    }
+    
+    
+    // (Existing deleteEvaluation method)
+    private static void deleteEvaluation(Scanner sc, config db, String studentSchoolID) {
+    System.out.println("\n--- DELETE EVALUATION (ID: " + studentSchoolID + ") ---");
+
+    String sqlView = "SELECT t1.e_id, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
+                     "e_average_rating, e_remarks " +
+                     "FROM tbl_evaluation t1 " +
+                     "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
+                     "WHERE t1.s_schoolID = ?";
+
+    String[] headers = {"Eval ID", "Instructor", "Avg Rating", "Remarks"};
+    String[] columns = {"e_id", "instructor_name", "e_average_rating", "e_remarks"};
+    
+    System.out.println("YOUR EVALUATIONS:");
+    db.viewRecords(sqlView, headers, columns, studentSchoolID);
+
+    System.out.print("\nEnter Evaluation ID (Eval ID) you want to delete: ");
+    int evalIdToDelete = getIntInput(sc, 1, Integer.MAX_VALUE);
+    
+    System.out.print("Are you sure you want to delete Evaluation ID " + evalIdToDelete + "? (Y/N): ");
+    String confirmation = sc.nextLine().trim().toUpperCase();
+
+    if (confirmation.equals("Y")) {
+      
+        String sqlDelete = "DELETE FROM tbl_evaluation WHERE e_id = ? AND s_schoolID = ?";
+        
+        db.deleteRecord(sqlDelete, String.valueOf(evalIdToDelete), studentSchoolID);
+        System.out.println(" EVALUATION ID " + evalIdToDelete + " HAS NOW BEEN DELETED.");
+    } else {
+        System.out.println("DELETION CNCELLED!");
+    }
+    
+    System.out.println("\nPPPPRESS ENTER TO CONTINUE..");
+    sc.nextLine();
+    }
+    
+    
+    // (Existing viewMyAcc method)
+    private static void viewMyAcc(Scanner sc, config db, String studentSchoolID) {
+    System.out.println("\n--- VIEW ACCOUNT INFO (ID: " + studentSchoolID + ") ---");
+
+    // Modified to include status
+    String sql = "SELECT s_schoolID, s_first_name, s_last_name, s_email, s_year_level, s_status " +
+                 "FROM tbl_student WHERE s_schoolID = ?";
+
+    String[] headers = {"School ID", "First Name", "Last Name", "Email", "Year Level", "Status"};
+    String[] columns = {"s_schoolID", "s_first_name", "s_last_name", "s_email", "s_year_level", "s_status"};
+
+    db.viewRecords(sql, headers, columns, studentSchoolID);
+
+    System.out.println("\nPress Enter to continue...");
+    sc.nextLine();
+    }
+    
+    // (Existing viewMyEvaluations method)
+    private static void viewMyEvaluations(Scanner sc, config db, int instructorID) {
+        System.out.println("\n--- MY EVALUATIONS ---"); 
+        String sql = "SELECT e_average_rating, e_year, e_sem, e_remarks FROM tbl_evaluation WHERE i_id = ?";
+        String[] headers = {"Avg Rating", "Year", "Semester", "Remarks"};
+        String[] columns = {"e_average_rating", "e_year", "e_sem", "e_remarks"};
+        
+        db.viewRecords(sql, headers, columns, String.valueOf(instructorID));
+        
+        System.out.println("\nPress Enter to continue...");
+        sc.nextLine();
+    }
+    
+    // (Existing manageInstructors method)
     private static void manageInstructors(Scanner sc, config db) {
         int choice;
         do {
@@ -366,6 +817,7 @@ public class main4 {
                         }
                         sqlBuilder.append(" WHERE i_id = ?");
                         
+                        // Collect parameters
                         Object[] params = new Object[count + 1];
                         int paramIndex = 0;
                         if (!firstName.isEmpty()) params[paramIndex++] = firstName;
@@ -389,408 +841,22 @@ public class main4 {
                 break;
             }
         } while (choice != 5);
-    }public static void approveAccounts(Scanner sc, config con) {
-    System.out.println("\n--- PENDING USER ACCOUNTS ---");
-
-    // 🛑 CRITICAL FIX: Changing 'ID' to 'id' here.
-    String Query = "SELECT id, u_name, u_email, u_type, u_status FROM tbl_user WHERE u_status = 'Pending'";
-    String[] headers = {"ID", "Name", "Email", "Type", "Status"};
-    String[] columns = {"id", "u_name", "u_email", "u_type", "u_status"}; // <-- Note: 'id' here
-
-    con.viewRecords(Query, headers, columns);
-
-    System.out.print("Enter ID to Approve (or 0 to cancel): ");
-    int ids = getIntInput(sc, 0, Integer.MAX_VALUE);
-
-    if (ids > 0) {
-        // We use 'id' in the WHERE clause of the UPDATE statement.
-        String sql = "UPDATE tbl_user SET u_status = ? WHERE id = ? AND u_status = 'Pending'";
-        con.updateRecord(sql, "Approved", ids);
-        System.out.println("User ID " + ids + " has been **APPROVED**.");
-    } else {
-        System.out.println("Account approval cancelled.");
-    }
-}
-public static void adminPasswordResetFlow(Scanner sc, config con) {
-    System.out.println("\n--- 🛑 ADMIN PASSWORD RESET (MAINTENANCE) 🛑 ---");
-    System.out.print("⚠️ WARNING: This feature bypasses security checks. Enter 'YES' to proceed: ");
-    String confirm = sc.nextLine().trim().toUpperCase();
-
-    if (!confirm.equals("YES")) {
-        System.out.println("Action cancelled. Returning to Main Menu.");
-        return;
     }
 
-    // 1. Prompt for Admin email
-    System.out.print("Enter the **ADMIN EMAIL** to reset: ");
-    String adminEmail = sc.nextLine();
-    
-    // 2. Find the admin user by email and ensure they are an 'Admin'
-    String qry = "SELECT u_name FROM tbl_user WHERE u_email = ? AND u_type = 'Admin' LIMIT 1";
-    List<Map<String, Object>> result = con.fetchRecords(qry, adminEmail); 
-
-    if (result.isEmpty()) {
-        System.out.println("ERROR: No 'Admin' user found with the email: " + adminEmail);
-        return;
-    }
-
-    Map<String, Object> admin = result.get(0);
-    String adminName = admin.get("u_name").toString();
-
-    // 3. Prompt for new password
-    System.out.println("\nAdministrator Found:");
-    System.out.println("  Name: " + adminName);
-    System.out.println("  Email: " + adminEmail);
-    System.out.print("Enter **NEW PASSWORD** for Admin (" + adminName + "): ");
-    String newPassword = sc.nextLine();
-
-    if (newPassword.trim().isEmpty()) {
-        System.out.println("Password cannot be empty. Reset cancelled.");
-        return;
-    }
-
-    // 4. Update the password using email
-    String sql = "UPDATE tbl_user SET u_pass = ? WHERE u_email = ? AND u_type = 'Admin'";
-    con.updateRecord(sql, newPassword, adminEmail);
-
-    System.out.println("\n✅ **SUCCESS!** The password for Admin user '" + adminName + "' has been reset.");
-    System.out.println("Please log in with your new password using option 2.");
-}
-
-    
-    public static void quickAdminRegistrationFlow(Scanner sc, config con) {
-    System.out.println("\n--- 🛠️ QUICK ADMIN REGISTRATION (MAINTENANCE) 🛠️ ---");
-    System.out.print("Enter Admin Name: ");
-    String name = sc.nextLine();
-    String email;
-
-    while (true) {
-        System.out.print("Enter Admin Email (Must be unique): ");
-        email = sc.nextLine();
-
-        String qry = "SELECT u_email FROM tbl_user WHERE u_email = ?";
-        List<Map<String, Object>> result = con.fetchRecords(qry, email);
-
-        if (result.isEmpty()) {
-            break;
-        } else {
-            System.out.println("Email already exists. Please enter a different email.");
-        }
-    }
-
-    System.out.print("Create Admin Password: ");
-    String pass = sc.nextLine();
-
-    // The INSERT statement does not use the primary key name, so it's safe.
-    String sql = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES (?, ?, ?, ?, ?)";
-    
-    // Hardcoded 'Admin' and 'Approved' status
-    con.addRecord(sql, name, email, "Admin", "Approved", pass);
-
-    System.out.println("\n✅ **SUCCESS!** Administrator account created.");
-    System.out.println("Name: " + name);
-    System.out.println("Email: " + email);
-    System.out.println("\nPlease use option 2 to log in immediately.");
-    System.out.println("NOTE: Delete option 5 and this function after initial setup.");
-}
-    private static void instructorMainActions(Scanner sc, config db, int instructorID) {
-        int choice;
-        do {
-            System.out.println("\n--- INSTRUCTOR MENU ---");
-            System.out.println("1. VIEW MY EVALUATIONS");
-            System.out.println("2. BACK TO MAIN MENU");
-            System.out.print("Enter your choice: ");
-
-            choice = getIntInput(sc, 1, 2);
-
-            switch (choice) {
-                case 1:
-                    viewMyEvaluations(sc, db, instructorID);
-                    break;
-                case 2:
-                    System.out.println("Logging out...");
-                    break;
-            }
-        } while (choice != 2);
-    }
-    
-        private static void viewMyEvaluations(Scanner sc, config db, int instructorID) {
-        System.out.println("\n--- MY EVALUATIONS ---"); 
-        String sql = "SELECT e_average_rating, e_year, e_sem, e_remarks FROM tbl_evaluation WHERE i_id = ?";
-        String[] headers = {"Avg Rating", "Year", "Semester", "Remarks"};
-        String[] columns = {"e_average_rating", "e_year", "e_sem", "e_remarks"};
-        
-        db.viewRecords(sql, headers, columns, String.valueOf(instructorID));
-        
-        System.out.println("\nPress Enter to continue...");
-        sc.nextLine();
-    }
-
-    private static void instructorMenu(Scanner sc, config db) {
-       
-    }
-
-    private static int getIntInput(Scanner sc, int min, int max) {
-        int input;
-        while (true) {
-            try {
-                if(sc.hasNextInt()){
-                    input = sc.nextInt();
-                    sc.nextLine();
-                    if (input < min || input > max) {
-                        System.out.print("PLEASE ENTER A NUMBER BETWEEN " + min + " AND " + max + " ");
-                    } else {
-                        return input;
-                    }
-                } else {
-                    System.out.print("PROPERLY CHECK YOUR INPUTS... ");
-                    System.out.println("PLEASE ENTER A NUMBER:");
-                    sc.nextLine(); 
-                }
-            } catch (InputMismatchException e) {
-                System.out.print("PROPERLY CHECK YOUR INPUTS... ");
-                System.out.println("PLEASE ENTER A NUMBER:");
-                sc.nextLine();
-            }
-        }
-    }
-
-    public static String studentFlow(Scanner sc, config db) {
-        System.out.println("\n--- STUDENT LOGIN/REGISTRATION ---");
-        System.out.print("NEW STUDENT? (Y for yes / N for no): ");
-
-        String newStudent = sc.nextLine().trim().toUpperCase();
-
-        String studentSchoolID = null;
-
-        if (newStudent.equals("Y")) {
-            System.out.println("\n--- STUDENT REGISTRATION ---");
-            System.out.print("ENTER YOUR SCHOOL ID (e.g., S2025-1234): ");
-            studentSchoolID = sc.nextLine();
-            System.out.print("YOUR FIRST NAME: ");
-            String firstName = sc.nextLine();
-            System.out.print("YOUR LAST NAME: ");
-            String lastName = sc.nextLine();
-            System.out.print("YOUR EMAIL: ");
-            String email = sc.nextLine();
-            System.out.print("YEAR LEVEL (1,2,3, or 4): ");
-            String yearLevel = sc.nextLine();
-            String placeholderPassword = ""; 
-            String sqlStudent = "INSERT INTO tbl_student (s_schoolID, s_first_name, s_last_name, s_email, s_year_level, s_password) VALUES (?,?,?,?,?,?)";
-           
-            db.addRecord(sqlStudent, studentSchoolID, firstName, lastName, email, yearLevel, placeholderPassword);
-
-            String studentName = firstName + " " + lastName;
-            System.out.println("\n✅ REGISTRATION SUCCESSFUL, " + studentName + "!");
-            System.out.println("YOU ARE NOW REGISTERED. PLEASE **LOG IN** TO CONTINUE.");
-            
-            studentSchoolID = null;
-        }
-
-        boolean valid = false;
-        while (!valid) {
-            System.out.println("\n--- STUDENT LOGIN ---");
-            System.out.print("Enter your School ID: ");
-            String loginSchoolID = sc.nextLine();
-            System.out.print("Enter your Surname (Last Name): ");
-            String loginLastName = sc.nextLine();
-
-            String sqlCheck = "SELECT s_schoolID, s_first_name, s_last_name FROM tbl_student WHERE s_schoolID = ? AND s_last_name = ?";
-            
-            List<Map<String, Object>> result = db.fetchRecords(sqlCheck, loginSchoolID, loginLastName);
-
-
-            if (!result.isEmpty()) {
-                valid = true;
-                studentSchoolID = loginSchoolID;
-                Map<String, Object> student = result.get(0);
-                String studentName = student.get("s_first_name").toString() + " " + student.get("s_last_name").toString();
-                System.out.println("\n🎉 SUCCESSFUL LOG-IN! Welcome, " + studentName + "!");
-                System.out.println("YOU ARE NOW PROCEEDING TO THE STUDENT MENU.");
-            } else {
-                System.out.println("❌ Invalid School ID or Surname. Try again.");
-                System.out.print("Enter 'R' to return to Main Menu or press Enter to try again: ");
-                if (sc.nextLine().trim().toUpperCase().equals("R")) {
-                    return null;
-                }
-            }
-        }
-        return studentSchoolID;
-    }
-
-    private static void studentMenu (Scanner sc, config db, String studentSchoolID){
-        int choyens;
-    do {
-        System.out.println("\n--- STUDENT MENU ---");
-        System.out.println("1. CREATE EVALUATION");
-        System.out.println("2. VIEW EVALUATIONS");
-        System.out.println("3. EDIT EVALUATION");
-        System.out.println("4. DELETE EVALUATION");
-        System.out.println("5. VIEW ACCOUT INFO.");
-        System.out.println("6. LOGOUT");
-
-
-        System.out.print("Choose an option: ");
-
-        choyens = getIntInput(sc, 1, 6);
-
-        switch (choyens) {
-            case 1:
-                studentEvaluation(sc, db, studentSchoolID);
-                break;
-
-            case 2:
-                viewEvaluation(sc, db, studentSchoolID);
-                break;
-
-            case 3:
-                editEvaluation(sc, db, studentSchoolID);
-                break;
-
-            case 4:
-                deleteEvaluation(sc, db, studentSchoolID);
-                break;
-
-            case 5:
-                viewMyAcc(sc, db, studentSchoolID);
-                break;
-
-            case 6:
-                System.out.println("Logging out and returning to Main Menu...");
-                break;
-        }
-
-    } while (choyens != 6);
-
-}
-    
-    private static void viewEvaluation(Scanner sc, config db, String studentSchoolID) { 
-        System.out.println("\n--- VIEW MY EVALUATIONS (ID: " + studentSchoolID + ") ---");
-
-        if (studentSchoolID == null || studentSchoolID.isEmpty()) {
-            System.out.println("ERROR: Could not retrieve your School ID. Please re-login.");
-            System.out.println("\nPress Enter to continue...");
-            sc.nextLine();
-            return;
-        }
-
-        
-    String sql = "SELECT t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
-                 "e_average_rating, e_year, e_sem, e_remarks " +
-                 "FROM tbl_evaluation t1 " +
-                 "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
-                 "WHERE t1.s_schoolID = ?";
-
-        String[] headers = {"Instructor", "Avg Rating", "Year", "Semester", "Remarks"};
-        String[] columns = {"instructor_name", "e_average_rating", "e_year", "e_sem", "e_remarks"};
-
-        db.viewRecords(sql, headers, columns, studentSchoolID);
-
-        System.out.println("\nPress Enter to continue...");
-        sc.nextLine();
-    }
-    
-    private static void editEvaluation(Scanner sc, config db, String studentSchoolID) {
-    System.out.println("\n--- EDIT EVALUATION (ID: " + studentSchoolID + ") ---");
-    
-    String sqlView = "SELECT t1.e_id, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
-                     "e_average_rating, e_remarks " +
-                     "FROM tbl_evaluation t1 " +
-                     "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
-                     "WHERE t1.s_schoolID = ?";
-
-    String[] headers = {"Eval ID", "Instructor", "Avg Rating", "Remarks"};
-    String[] columns = {"e_id", "instructor_name", "e_average_rating", "e_remarks"};
-
-    System.out.println("YOUR EVALUATIONS:");
-    db.viewRecords(sqlView, headers, columns, studentSchoolID);
-    
-    System.out.print("\nEnter the Evaluation ID (Eval ID) you want to edit: ");
-    int evalIdToEdit = getIntInput(sc, 1, Integer.MAX_VALUE);
-    
-    System.out.println("\n--- EDITING EVALUATION ID " + evalIdToEdit + " ---");
-    System.out.print("Enter NEW COMMENTS and RECOMMENDATIONS (Current will be replaced): ");
-    String newComments = sc.nextLine();
-    
-    if (newComments.isEmpty()) {
-        System.out.println("YOU CHANGED NOTHING1");
-        System.out.println("\nPRESSS ENTER TO CONTINUUEE..");
-        sc.nextLine();
-        return;
-    }
-
-    String sqlUpdate = "UPDATE tbl_evaluation SET e_remarks = ? WHERE e_id = ? AND s_schoolID = ?";
-    
-    db.updateRecord(sqlUpdate, newComments, String.valueOf(evalIdToEdit), studentSchoolID);
-    
-    System.out.println("EVALUATION ID " + evalIdToEdit + " HAVE BEEN SUCCESSFULLY UPDATEDD.");
-
-    System.out.println("\nPREESS ENTER TO CONTINUEEE...");
-    sc.nextLine();
-    }
-    
-    private static void deleteEvaluation(Scanner sc, config db, String studentSchoolID) {
-    System.out.println("\n--- DELETE EVALUATION (ID: " + studentSchoolID + ") ---");
-
-    String sqlView = "SELECT t1.e_id, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
-                     "e_average_rating, e_remarks " +
-                     "FROM tbl_evaluation t1 " +
-                     "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
-                     "WHERE t1.s_schoolID = ?";
-
-    String[] headers = {"Eval ID", "Instructor", "Avg Rating", "Remarks"};
-    String[] columns = {"e_id", "instructor_name", "e_average_rating", "e_remarks"};
-    
-    System.out.println("YOUR EVALUATIONS:");
-    db.viewRecords(sqlView, headers, columns, studentSchoolID);
-
-    System.out.print("\nEnter Evaluation ID (Eval ID) you want to delete: ");
-    int evalIdToDelete = getIntInput(sc, 1, Integer.MAX_VALUE);
-    
-    System.out.print("Are you sure you want to delete Evaluation ID " + evalIdToDelete + "? (Y/N): ");
-    String confirmation = sc.nextLine().trim().toUpperCase();
-
-    if (confirmation.equals("Y")) {
-        
-        String sqlDelete = "DELETE FROM tbl_evaluation WHERE e_id = ? AND s_schoolID = ?";
-        
-        db.deleteRecord(sqlDelete, String.valueOf(evalIdToDelete), studentSchoolID);
-        System.out.println(" EVALUATION ID " + evalIdToDelete + " HAS NOW BEEN DELETED.");
-    } else {
-        System.out.println("DELETION CNCELLED!");
-    }
-    
-    System.out.println("\nPPPPRESS ENTER TO CONTINUE..");
-    sc.nextLine();
-    }
-    
-    private static void viewMyAcc(Scanner sc, config db, String studentSchoolID) {
-    System.out.println("\n--- VIEW ACCOUNT INFO (ID: " + studentSchoolID + ") ---");
-
-    String sql = "SELECT s_schoolID, s_first_name, s_last_name, s_email, s_year_level " +
-                 "FROM tbl_student WHERE s_schoolID = ?";
-
-    String[] headers = {"School ID", "First Name", "Last Name", "Email", "Year Level"};
-    String[] columns = {"s_schoolID", "s_first_name", "s_last_name", "s_email", "s_year_level"};
-
-    db.viewRecords(sql, headers, columns, studentSchoolID);
-
-    System.out.println("\nPress Enter to continue...");
-    sc.nextLine();
-    }
-    
-private static void manageStudents(Scanner sc, config db) {
+    // (Updated manageStudents method)
+    private static void manageStudents(Scanner sc, config db) {
         int choice;
         do {
             System.out.println("\n--- MANAGE STUDENTS ---");
             System.out.println("1. ADD STUDENT");
             System.out.println("2. VIEW STUDENT'S LIST");
-            System.out.println("3. UPDATE STUDENT'S INFO.");
-            System.out.println("4. DELETE STUDNET");
-            System.out.println("5. BACK TO MENU");
+            System.out.println("3. APPROVE PENDING STUDENTS"); // NEW OPTION
+            System.out.println("4. UPDATE STUDENT'S INFO.");
+            System.out.println("5. DELETE STUDNET");
+            System.out.println("6. BACK TO MENU"); // Option count increased to 6
             System.out.print("Enter your choice: ");
 
-            choice = getIntInput(sc, 1, 5);
+            choice = getIntInput(sc, 1, 6); // Max choice is now 6
 
             switch (choice) {
                 case 1 : {
@@ -805,18 +871,41 @@ private static void manageStudents(Scanner sc, config db) {
                     System.out.print("YEAR LEVEL: ");
                     String yearLevel = sc.nextLine();
 
-                    String sql = "INSERT INTO tbl_student (s_schoolID, s_first_name, s_last_name, s_email, s_year_level) VALUES (?, ?, ?, ?, ?)";
-                    db.addRecord(sql, id, firstName, lastName, email, yearLevel);
+                    // Adding new student with status 'Approved' (assuming Admin adding means they are approved)
+                    String sql = "INSERT INTO tbl_student (s_schoolID, s_first_name, s_last_name, s_email, s_year_level, s_status) VALUES (?, ?, ?, ?, ?, ?)";
+                    db.addRecord(sql, id, firstName, lastName, email, yearLevel, "Approved");
                 }
                 break;
                 case 2 : {
-                    String sql = "SELECT s_schoolID, s_first_name, s_last_name, s_email, s_year_level FROM tbl_student";
-                    String[] headers = {"School ID", "First Name", "Last Name", "Email", "Year Level"};
-                    String[] columns = {"s_schoolID", "s_first_name", "s_last_name", "s_email", "s_year_level"};
+                    // View all students including status
+                    String sql = "SELECT s_schoolID, s_first_name, s_last_name, s_email, s_year_level, s_status FROM tbl_student";
+                    String[] headers = {"School ID", "First Name", "Last Name", "Email", "Year Level", "Status"};
+                    String[] columns = {"s_schoolID", "s_first_name", "s_last_name", "s_email", "s_year_level", "s_status"};
                     db.viewRecords(sql, headers, columns);
                 }
                 break;
-                case 3 : {
+                case 3 : { // New: Approve Pending Students
+                    System.out.println("\n--- APPROVE PENDING STUDENT ACCOUNTS ---");
+                    
+                    String pendingQuery = "SELECT s_schoolID, s_first_name, s_last_name, s_email FROM tbl_student WHERE s_status = 'Pending'";
+                    String[] pendHeaders = {"School ID", "First Name", "Last Name", "Email"};
+                    String[] pendColumns = {"s_schoolID", "s_first_name", "s_last_name", "s_email"};
+                    
+                    db.viewRecords(pendingQuery, pendHeaders, pendColumns); 
+                    
+                    System.out.print("Enter School ID to Approve (or 0 to cancel): ");
+                    String idToApprove = sc.nextLine().trim();
+                    
+                    if (!idToApprove.equals("0") && !idToApprove.isEmpty()) {
+                        String sql = "UPDATE tbl_student SET s_status = ? WHERE s_schoolID = ? AND s_status = 'Pending'";
+                        db.updateRecord(sql, "Approved", idToApprove);
+                        System.out.println("Student ID " + idToApprove + " has been **APPROVED**.");
+                    } else {
+                        System.out.println("Student approval cancelled.");
+                    }
+                }
+                break;
+                case 4 : { // Update Student Info (was 3)
                     System.out.print("ENTER SCHOOL ID TO UPDATE: ");
                     String id = sc.nextLine();
                     System.out.print("NEW FIRST NAME(leave blank to keep current): ");
@@ -827,8 +916,6 @@ private static void manageStudents(Scanner sc, config db) {
                     String email = sc.nextLine();
                     System.out.print("NEW YEAR LEVEL(leave blank to keep current): ");
                     String yearLevel = sc.nextLine();
-                    System.out.print("NEW PASSWORD (leave blank to keep current/no password): ");
-                    String password = sc.nextLine();
 
                     StringBuilder sql = new StringBuilder("UPDATE tbl_student SET ");
                     int count = 0;
@@ -837,7 +924,7 @@ private static void manageStudents(Scanner sc, config db) {
                     if (!lastName.isEmpty()) { if (count > 0) sql.append(", "); sql.append("s_last_name = ?"); count++; }
                     if (!email.isEmpty()) { if (count > 0) sql.append(", "); sql.append("s_email = ?"); count++; }
                     if (!yearLevel.isEmpty()) { if (count > 0) sql.append(", "); sql.append("s_year_level = ?"); count++; }
-                    if (!password.isEmpty()) { if (count > 0) sql.append(", "); sql.append("s_password = ?"); count++; }
+
                     if (count > 0) {
                         sql.append(" WHERE s_schoolID = ?");
                         
@@ -847,7 +934,6 @@ private static void manageStudents(Scanner sc, config db) {
                         if (!lastName.isEmpty()) params[paramIndex++] = lastName;
                         if (!email.isEmpty()) params[paramIndex++] = email;
                         if (!yearLevel.isEmpty()) params[paramIndex++] = yearLevel;
-                        if (!password.isEmpty()) params[paramIndex++] = password; 
                         params[paramIndex] = id;
 
                         db.updateRecord(sql.toString(), params);
@@ -857,105 +943,67 @@ private static void manageStudents(Scanner sc, config db) {
                     }
                 }
                 break;
-                case 4 : {
+                case 5 : { // Delete Student (was 4)
                     System.out.print("ENTER SCHOOL ID TO DELETE: ");
                     String id = sc.nextLine();
                     String sql = "DELETE FROM tbl_student WHERE s_schoolID = ?";
                     db.deleteRecord(sql, id);
                 }
                 break;
-                case 5 : System.out.println("RETURNING TO ADMIN MENU...");
+                case 6 : System.out.println("RETURNING TO ADMIN MENU..."); // Back (was 5)
                 break;
             }
-        } while (choice != 5);
+        } while (choice != 6);
     }
-    private static void studentEvaluation(Scanner sc, config db, String studentSchoolID){
 
-        String[] instructors = {
-            "Ching Archival", "Dalley Alterado", "Rose Gamboa",
-            "Aries Dajay", "Fil Aripal", "Joseph Lanza",
-            "Ramel Obejero", "Michael John Bustamante", "Aries Dajay", "Zillah Nodalo"
-        };
-        String[] courses = {
-            "ART APPRECIATION", "ECONOMICS, TAXATION, AND LAND REFORMS", "LOGIC",
-            "INFORMATION MANAGEMENT", "PC ASSEMBLING AND DISASSEMBLING",
-            "PRINCIPLES OF ACCOUNTING", "PE3", "OBJECT ORIENTED PROGRAMMING (OOP1)",
-            "DATA STRUCTURES AND ALGORITHM", "CHRISTOLOGY"
-        };
+    private static void manageEvaluations(Scanner sc, config db) {
+        int choice;
+        do {
+            System.out.println("\n--- MANAGE EVALUATIONS ---");
+            System.out.println("1. VIEW ALL EVALUATIONS");
+            System.out.println("2. VIEW EVALUATION BY INSTRUCTOR");
+            System.out.println("3. DELETE EVALUATION");
+            System.out.println("4. BACK TO MENU");
+            System.out.print("Enter your choice: ");
 
+            choice = getIntInput(sc, 1, 4);
 
-        System.out.println("--- INSTRUCTOR SELECTION ---");
-
-        viewInstructors(sc, instructors);
-        System.out.print("Enter the number of the Instructor you want to evaluate: ");
-        int instructorChoice = getIntInput(sc, 1, instructors.length);
-        String selectedInstructor = instructors[instructorChoice - 1];
-
-        int instructorID = getInstructorIdByName(db, selectedInstructor);
-        if (instructorID == -1) {
-            System.out.println("Evaluation cancelled: Could not find instructor in database.");
-            return;
-        }
-        System.out.println("\n--- COURSE SELECTION ---");
-        for (int i = 0; i < courses.length; i++) {
-            System.out.println((i + 1) + ". " + courses[i]);
-        }
-        System.out.print("Enter the number of the Course/Subject taught by " + selectedInstructor + ": ");
-        int courseChoice = getIntInput(sc, 1, courses.length);
-        String selectedCourse = courses[courseChoice - 1];
-
-        System.out.println("\n--- EVALUATION ---");
-        System.out.println("YOU ARE EVALUATING **" + selectedInstructor + "** FOR THE COURSE **" + selectedCourse + "**.");
-
-        System.out.println("\n--- RATING SCALE ---");
-        System.out.println("5 - Observed to a large extent");
-        System.out.println("4 - Observed");
-        System.out.println("3 - Observed to a minimal extent");
-        System.out.println("2 - Much to be desired upon");
-        System.out.println("1 - Not Observed");
-
-        String[] questions = {
-            "Class activities are meaningful and directly related to the course material.",
-            "The instructor is adaptable and adjusts their approach to meet individual student needs.",
-            "The instructor provides clear instructions and expectations for all assignments and exams.",
-            "The instructor actively involves students in the learning process.",
-            "Class time is used efficiently and effectively by the instructor.",
-            "Assignments and homework are returned promptly with feedback.",
-            "The instructor has clear procedures in place that prevent time from being wasted."
-        };
-
-        int totalRating = 0;
-        for (int i = 0; i < questions.length; i++) {
-            System.out.println("\nQuestion " + (i + 1) + ": " + questions[i]);
-            System.out.print("Enter your rating (1-5): ");
-            int rating = getIntInput(sc, 1, 5);
-            totalRating += rating;
-        }
-        
-        double averageRating = (double) totalRating / questions.length;
-        averageRating = Math.round(averageRating * 100.0) / 100.0; 
-
-        System.out.println("\n--- REMARKS AND RECOMMENDATIONS ---");
-        System.out.print("Please enter your comments and recommendations (100 characters max): ");
-        String remarks = sc.nextLine();
-        if (remarks.length() > 100) {
-            remarks = remarks.substring(0, 100);
-            System.out.println("Remarks trimmed to 100 characters.");
-        }
-
-        String currentYear = String.valueOf(Year.now().getValue());
-        
-        System.out.print("Enter the Semester (e.g., 1st, 2nd, Summer): ");
-        String semester = sc.nextLine();
-        
-        String sql = "INSERT INTO tbl_evaluation (i_id, s_schoolID, e_average_rating, e_remarks, e_year, e_sem) VALUES (?, ?, ?, ?, ?, ?)";
-        
-        db.addRecord(sql, instructorID, studentSchoolID, averageRating, remarks, currentYear, semester);
-        
-        System.out.println("\n✅ EVALUATION SUBMITTED SUCCESSFULLY!");
-        System.out.println("Instructor: " + selectedInstructor);
-        System.out.println("Average Rating: " + averageRating);
-        System.out.println("\nPress Enter to return to Student Menu...");
-        sc.nextLine();
+            switch (choice) {
+                case 1: {
+                    String sql = "SELECT t1.e_id, t3.s_schoolID, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
+                                 "e_average_rating, e_remarks, e_year, e_sem " +
+                                 "FROM tbl_evaluation t1 " +
+                                 "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
+                                 "JOIN tbl_student t3 ON t1.s_schoolID = t3.s_schoolID";
+                    String[] headers = {"Eval ID", "Student ID", "Instructor", "Avg Rating", "Remarks", "Year", "Sem"};
+                    String[] columns = {"e_id", "s_schoolID", "instructor_name", "e_average_rating", "e_remarks", "e_year", "e_sem"};
+                    db.viewRecords(sql, headers, columns);
+                }
+                break;
+                case 2: {
+                    System.out.print("ENTER INSTRUCTOR ID TO VIEW EVALUATIONS: ");
+                    int id = getIntInput(sc, 1, Integer.MAX_VALUE);
+                    String sql = "SELECT t1.e_id, t3.s_schoolID, t2.i_first_name || ' ' || t2.i_last_name AS instructor_name, " +
+                                 "e_average_rating, e_remarks, e_year, e_sem " +
+                                 "FROM tbl_evaluation t1 " +
+                                 "JOIN tbl_instructor t2 ON t1.i_id = t2.i_id " +
+                                 "JOIN tbl_student t3 ON t1.s_schoolID = t3.s_schoolID " +
+                                 "WHERE t1.i_id = ?";
+                    String[] headers = {"Eval ID", "Student ID", "Instructor", "Avg Rating", "Remarks", "Year", "Sem"};
+                    String[] columns = {"e_id", "s_schoolID", "instructor_name", "e_average_rating", "e_remarks", "e_year", "e_sem"};
+                    db.viewRecords(sql, headers, columns, id);
+                }
+                break;
+                case 3: {
+                    System.out.print("ENTER EVALUATION ID TO DELETE: ");
+                    int id = getIntInput(sc, 1, Integer.MAX_VALUE);
+                    String sql = "DELETE FROM tbl_evaluation WHERE e_id = ?";
+                    db.deleteRecord(sql, id);
+                }
+                break;
+                case 4: System.out.println("RETURNING TO ADMIN MENU...");
+                break;
+            }
+        } while (choice != 4);
     }
 }
