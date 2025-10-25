@@ -31,7 +31,12 @@ public class config {
      * @param values The values to be inserted, corresponding to the '?' placeholders.
      */
     public void addRecord(String sql, Object... values) {
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+    connectDB(); 
+    if (this.conn == null) {
+        System.out.println("cannot add record. Check Database connection! ");
+        return;
+    }
+    try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             for (int i = 0; i < values.length; i++) {
                 if (values[i] instanceof Integer) {
                     pstmt.setInt(i + 1, (Integer) values[i]);
@@ -55,7 +60,7 @@ public class config {
      * @param params The values to be set in the prepared statement.
      * @return A ResultSet containing the query results, or null if an error occurs.
      */
-    public ResultSet getRecords(String sql, Object... params) {
+    /*public ResultSet getRecords(String sql, Object... params) {
         try {
             PreparedStatement pstmt = conn.prepareStatement(sql);
             
@@ -70,7 +75,7 @@ public class config {
             return null;
         }
     }
-
+*/
     /**
      * Updates an existing record in the database using a prepared statement.
      * @param sql The SQL UPDATE statement with '?' placeholders.
@@ -265,28 +270,36 @@ public java.util.List<java.util.Map<String, Object>> fetchRecords(String sqlQuer
 }
 
 public int addRecordAndReturnId(String query, Object... params) {
-        int generatedId = -1;
-        try (Connection conn = connectDB();
-             PreparedStatement pstmt = conn.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
+    int generatedId = -1;
+    connectDB(); 
 
-            for (int i = 0; i < params.length; i++) {
-                pstmt.setObject(i + 1, params[i]);
-            }
-
-            int affectedRows = pstmt.executeUpdate();
-            if (affectedRows > 0) {
-                try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        generatedId = rs.getInt(1);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            System.out.println("Error inserting record: " + e.getMessage());
-        }
+    if (this.conn == null) {
+        System.out.println("Error: Database connection is not available.");
         return generatedId;
     }
+    
+    try (PreparedStatement pstmt = this.conn.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) { 
+        
+        for (int i = 0; i < params.length; i++) {
+            pstmt.setObject(i + 1, params[i]);
+        }
+
+        int affectedRows = pstmt.executeUpdate();
+        if (affectedRows > 0) {
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    generatedId = rs.getInt(1);
+                }
+            }
+        }
+    } catch (SQLException e) {
+        // You should check for "database is closed" here, which often happens
+        // if the client code is closing the connection too early.
+        System.out.println("Error inserting record: " + e.getMessage());
+    }
+    return generatedId;
 }
+
 
 public static String hashPassword(String password) {
     try {
@@ -344,3 +357,14 @@ con.addRecord(sql, email, hashedPass, type, "Active");
 System.out.println("User registered successfully!");
 
 */
+public void closeDB() {
+    try {
+        if (this.conn != null && !this.conn.isClosed()) {
+            this.conn.close();
+            System.out.println("Database connection closed.");
+        }
+    } catch (SQLException e) {
+        System.err.println("Error closing database connection: " + e.getMessage());
+    }
+}
+}
