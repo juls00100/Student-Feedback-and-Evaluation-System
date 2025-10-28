@@ -115,13 +115,11 @@ public class Main2 {
             String firstName = sc.nextLine();
             System.out.print("Enter Last Name: ");
             String lastName = sc.nextLine();
-            System.out.print("Enter Password:");
-            String p = sc.nextLine();
             
             name = firstName + " " + lastName; 
            
-            String instructorQry = "INSERT INTO tbl_instructor(i_first_name, i_last_name, i_password, i_u_id) VALUES (?, ?, ?, ?)";
-            db.addRecord(instructorQry, firstName, lastName, p, generatedUserId);
+            String instructorQry = "INSERT INTO tbl_instructor(i_first_name, i_last_name, i_u_id) VALUES (?, ?, ?, ?)";
+            db.addRecord(instructorQry, firstName, lastName, generatedUserId);
             
             System.out.println("Instructor profile created for: " + name);
             
@@ -1055,6 +1053,7 @@ public class Main2 {
             System.out.print("Enter your choice: ");
 
             choice = getIntInput(sc, 1, 5);
+            sc.nextLine();
 
             switch (choice) {
                 case 1 : {
@@ -1067,6 +1066,7 @@ public class Main2 {
                     String hashedPassword = db.hashPassword(password);
                     String sql = "INSERT INTO tbl_instructor (i_first_name, i_last_name, i_password) VALUES (?, ?, ?)";
                     db.addRecord(sql, firstName, lastName, hashedPassword);
+                    System.out.println("\nInstructor " + firstName + " " + lastName + " ADDED.");
                 } break;
                 
                 case 2 : {
