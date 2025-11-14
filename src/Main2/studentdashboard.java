@@ -48,12 +48,14 @@ public class studentdashboard {
         int choice;
         int maxChoice =5;
         do {
-            System.out.println("\n--- STUDENT DASHBOARD ---");
-            System.out.println("1. SUBMIT NEW INSTRUCTOR EVALUATION");
-            System.out.println("2. VIEW MY PREVIOUS EVALUATIONS");
-            System.out.println("3. I WANT TO ARCHIVE AN EVALUATION");
-            System.out.println("4. VIEW ARCHIVED EVALUATIONS");
-            System.out.println("5. EXIT STUDENT DASHBOARD");
+            System.out.println("\n     --- STUDENT DASHBOARD ---");
+            System.out.println(" ---------------------------------------");
+            System.out.println("|  1. SUBMIT NEW INSTRUCTOR EVALUATION  |");
+            System.out.println("|  2. VIEW MY PREVIOUS EVALUATIONS      |");
+            System.out.println("|  3. I WANT TO ARCHIVE AN EVALUATION   |");
+            System.out.println("|  4. VIEW MY ARCHIVED EVALUATIONS      |");
+            System.out.println("|  5. EXIT STUDENT DASHBOARD            |");
+            System.out.println(" ---------------------------------------");
             System.out.print("Enter your choice: ");
 
             choice = Main2.getIntInput(sc, 1, maxChoice); 
@@ -79,7 +81,7 @@ public class studentdashboard {
     }
 
     private void submitEvaluation() {
-        System.out.println("\n--- SUBMIT EVALUATION ---");
+        System.out.println("\n   --- SUBMIT EVALUATION ---");
         
         String schoolId = getStudentSchoolID();
         if (schoolId == null) {
@@ -87,7 +89,7 @@ public class studentdashboard {
             return;
         }
 
-        System.out.println("\n--- Available Instructors ---");
+        System.out.println("\n   --- Available Instructors ---");
         String instructorSql = "SELECT t1.i_id, t1.i_name FROM tbl_instructor t1 " +
                                "INNER JOIN tbl_user t2 ON t1.i_u_id = t2.u_id " + 
                                "WHERE t2.u_status = 'Approved'";
@@ -103,7 +105,7 @@ public class studentdashboard {
         String[] columns = {"i_id", "i_name"};
         db.viewRecords(instructors, headers, columns); 
 
-        System.out.print("\nENTER INSTRUCTOR ID TO EVALUATE: ");
+        System.out.print("\n  ENTER INSTRUCTOR ID TO EVALUATE: ");
         int instructorId = Main2.getIntInput(sc, 1, Integer.MAX_VALUE);
         sc.nextLine();
 
@@ -113,9 +115,9 @@ public class studentdashboard {
              System.out.println("Error: Instructor ID " + instructorId + " not found.");
              return;
         }
-        System.out.print("Enter School Year (e.g., 2024): ");
+        System.out.print("  Enter School Year (e.g., 2024): ");
         String year = sc.nextLine();
-        System.out.print("Enter Semester (e.g., 1st, 2nd, Summer): ");
+        System.out.print("  Enter Semester (e.g., 1st, 2nd, Summer): ");
         String sem = sc.nextLine();
         
         String checkEvalSql = "SELECT 1 FROM tbl_evaluation WHERE s_schoolID = ? AND i_id = ? AND e_year = ? AND e_sem = ?";
@@ -127,7 +129,7 @@ public class studentdashboard {
 
         List<Integer> scores = new ArrayList<>();
         double totalScore = 0;
-        System.out.println("\n-- Evaluation Questions (Rate 1-5) --");
+        System.out.println("\n   -- Evaluation Questions (Rate 1-5) --");
         
         
         for (String question : this.evalQuestions) {
@@ -138,7 +140,7 @@ public class studentdashboard {
             totalScore += score;
         }
         
-        System.out.print("\nEnter Remarks/Comments: ");
+        System.out.print("\n  Enter Remarks/Comments: ");
         String remarks = sc.nextLine();
 
         
@@ -203,7 +205,7 @@ System.out.println("Evaluation submitted successfully. Average Rating: " + forma
     }
 
     private void viewMyEvaluations() {
-        System.out.println("\n--- MY SUBMITTED EVALUATIONS ---");
+        System.out.println("\n                             --- SUBMITTED EVALUATIONS ---");
         
         String schoolId = getStudentSchoolID();
         if (schoolId == null) {
@@ -288,7 +290,7 @@ System.out.println("Evaluation submitted successfully. Average Rating: " + forma
     }
     
 private void archiveEvaluation() {
-        System.out.println("\n--- ARCHIVE EVALUATION ---");
+        System.out.println("\n                    --- ARCHIVE EVALUATION ---");
 
         String schoolId = getStudentSchoolID();
         if (schoolId == null) {

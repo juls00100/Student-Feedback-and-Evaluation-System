@@ -26,7 +26,7 @@ public class admindashboard {
             this.userType = (String) result.get(0).get("u_type");
         } else {
             this.userType = "Unknown"; 
-            System.out.println("Error: Could not determine current user type. System access restricted.");
+            System.out.println("  Error: Could not determine current user type. System access restricted.");
         }
     }
 
@@ -36,18 +36,18 @@ public class admindashboard {
         
         do {
             System.out.println("");
-            System.out.println("\n--- ADMIN DASHBOARD ---");
-            
-            System.out.println("1. ADD A NEW USER"); 
-            System.out.println("2. VIEW ALL THE USERS"); 
-            System.out.println("3. EDIT USER's INFO"); 
-            System.out.println("4. APPROVE A PENDING ACCOUNT"); 
-            System.out.println("5. MANAGE ACCOUNT STATUS (Disable/Re-activate)"); 
-            System.out.println("6. VIEW EVALUATIONS LIST"); 
-            System.out.println("7. ARCHIVE SPECIFIC STUDENT's EVALUATION"); 
-            System.out.println("8. EXIT ADMIN DASHBOARD"); 
-
-            System.out.print("Enter your choice (1-" + maxChoice + "): ");
+            System.out.println("\n     --- ADMIN DASHBOARD ---");
+            System.out.println(" ---------------------------------");
+            System.out.println("|  1. ADD A NEW USER              |"); 
+            System.out.println("|  2. VIEW ALL THE USERS          |"); 
+            System.out.println("|  3. EDIT USER's INFO            |"); 
+            System.out.println("|  4. APPROVE A PENDING ACCOUNT   |"); 
+            System.out.println("|  5. MANAGE ACCOUNT STATUS       |"); 
+            System.out.println("|  6. VIEW EVALUATIONS LIST       |"); 
+            System.out.println("|  7. ARCHIVE STUDENT's EVALUATION|"); 
+            System.out.println("|  8. EXIT ADMIN DASHBOARD        |"); 
+            System.out.println(" ---------------------------------");
+            System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
 
             switch (choice) {
@@ -58,7 +58,7 @@ public class admindashboard {
                 case 5: handleAccountStatus(); break;
                 case 6: viewSystemEvaluations(); break; 
                 case 7: archiveEvaluation(); break; 
-                case 8: System.out.println("LOGGING OUT..."); break;
+                case 8: System.out.println("  LOGGING OUT..."); break;
             }
         } while (choice != maxChoice);
     }
@@ -71,18 +71,21 @@ public class admindashboard {
     }
 
     private void viewRecordsByType(String type) {
-        System.out.println("\n--- ALL " + type.toUpperCase() + "S ---\n");
         String sql;
         String[] headers;
         String[] columns;
 
         if (type.equalsIgnoreCase("Student")) {
+            
+        System.out.println("\n                             --- ALL " + type.toUpperCase() + "S ---");
             sql = "SELECT t1.u_id, t2.s_name, t2.s_schoolID, t1.u_email, t1.u_status FROM tbl_user t1 " +
                   "INNER JOIN tbl_student t2 ON t1.u_id = t2.s_u_id " +
                   "WHERE t1.u_type = 'Student'";
             headers = new String[]{"User ID", "Name", "School ID", "Email", "Status"};
             columns = new String[]{"u_id", "s_name", "s_schoolID", "u_email", "u_status"};
         } else if (type.equalsIgnoreCase("Instructor")) {
+            
+        System.out.println("\n                     --- ALL " + type.toUpperCase() + "S ---");
             sql = "SELECT t1.u_id, t2.i_name, t1.u_email, t1.u_status FROM tbl_user t1 " +
                   "INNER JOIN tbl_instructor t2 ON t1.u_id = t2.i_u_id " +
                   "WHERE t1.u_type = 'Instructor'";
@@ -92,18 +95,19 @@ public class admindashboard {
             if (this.userType.equalsIgnoreCase("SuperAdmin")) {
                  sql = "SELECT u_id, u_email, u_type, u_status FROM tbl_user WHERE u_type IN ('Admin', 'SuperAdmin')";
             } else {
+                 System.out.println("\n               --- ALL " + type.toUpperCase() + "S ---");
                  sql = "SELECT u_id, u_email, u_type, u_status FROM tbl_user WHERE u_type = 'Admin'";
             }
             headers = new String[]{"User ID", "Email", "Type", "Status"};
             columns = new String[]{"u_id", "u_email", "u_type", "u_status"};
         } else {
-            System.out.println("Invalid user type specified for view.");
+            System.out.println("  Invalid user type specified for view.");
             return;
         }
 
         List<Map<String, Object>> records = db.fetchRecords(sql);
         if (records.isEmpty()) {
-            System.out.println("No " + type.toLowerCase() + " records found.");
+            System.out.println("  No " + type.toLowerCase() + " records found.");
         } else {
             db.viewRecords(records, headers, columns);
         }
@@ -114,40 +118,41 @@ public class admindashboard {
         int maxChoice = 4;
         
         do {
-            System.out.println("\n--- ADD NEW USER SUB-MENU ---");
-            System.out.println("1. Add Student");
-            System.out.println("2. Add Instructor");
-            System.out.println("3. Add Admin");
-            System.out.println("4. Back to Admin Dashboard");
-
-            System.out.print("Enter your choice (1-" + maxChoice + "): ");
+            System.out.println("\n  --- ADD NEW USER SUB-MENU ---");
+            System.out.println(" -------------------------------");
+            System.out.println("|  1. Add Student               |");
+            System.out.println("|  2. Add Instructor            |");
+            System.out.println("|  3. Add Admin                 |");
+            System.out.println("|  4. Back to Admin Dashboard   |");
+            System.out.println(" -------------------------------");
+            System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
 
             switch (choice) {
                 case 1: addStudent(); break;
                 case 2: addInstructor(); break;
                 case 3: addAdmin(); break;
-                case 4: System.out.println("Returning to Admin Dashboard..."); break;
+                case 4: System.out.println("  Returning to Admin Dashboard..."); break;
             }
         } while (choice != maxChoice);
     }
 
     private int promptForCredentialsAndInsertUser(String type) {
-        System.out.println("\n--- ADD NEW " + type.toUpperCase() + " ---\n");
+        System.out.println("\n   --- ADD NEW " + type.toUpperCase() + " ---\n");
         sc.nextLine(); 
 
         String email;
         while (true) {
-            System.out.print("Enter " + type.toLowerCase() + " email: ");
+            System.out.print("  Enter " + type.toLowerCase() + " email: ");
             email = sc.nextLine().trim();
             String checkEmailSql = "SELECT u_email FROM tbl_user WHERE u_email = ?";
             if (db.fetchRecords(checkEmailSql, email).isEmpty()) {
                 break;
             }
-            System.out.println("Error: Email already exists. Please enter a different email.");
+            System.out.println("  Error: Email already exists. Please enter a different email.");
         }
 
-        System.out.print("Enter password: ");
+        System.out.print("  Enter password: ");
         String pass = sc.nextLine().trim();
         String hashedPass = db.hashPassword(pass);
 
@@ -164,56 +169,57 @@ public class admindashboard {
         int newUserId = promptForCredentialsAndInsertUser("Student");
         if (newUserId == -1) return;
 
-        System.out.print("Enter Student ID (e.g., scc-00-01): ");
+        System.out.print("  Enter Student ID (e.g., scc-00-01): ");
         String schoolId = sc.nextLine().trim();
         
-        System.out.print("Enter Student Name: ");
+        System.out.print("  Enter Student Name: ");
         String name = sc.nextLine().trim();
 
         String studentSql = "INSERT INTO tbl_student(s_u_id, s_schoolID, s_name) VALUES(?, ?, ?)";
         db.addRecord(studentSql, newUserId, schoolId, name);
         
-        System.out.println("\nSUCCESS: New Student added with User ID " + newUserId + ". Status is 'Pending' and requires approval.");
+        System.out.println("\n  SUCCESS: New Student added with User ID " + newUserId + ". Status is 'Pending' and requires approval.");
     }
 
     private void addInstructor() {
         int newUserId = promptForCredentialsAndInsertUser("Instructor");
         if (newUserId == -1) return;
 
-        System.out.print("Enter Instructor Name: ");
+        System.out.print("  Enter Instructor Name: ");
         String name = sc.nextLine().trim();
         
         String instructorSql = "INSERT INTO tbl_instructor(i_u_id, i_name) VALUES(?, ?)";
         db.addRecord(instructorSql, newUserId, name);
         
-        System.out.println("\nSUCCESS: New Instructor added with User ID " + newUserId + ". Status is 'Pending' and requires approval.");
+        System.out.println("\n  SUCCESS: New Instructor added with User ID " + newUserId + ". Status is 'Pending' and requires approval.");
     }
 
     private void addAdmin() {
         int newUserId = promptForCredentialsAndInsertUser("Admin");
         if (newUserId == -1) return;
         
-        System.out.println("\nSUCCESS: New Admin added with User ID " + newUserId + ". Status is 'Pending'. NOTE: Admin accounts must be approved by the SuperAdmin.");
+        System.out.println("\n  SUCCESS: New Admin added with User ID " + newUserId + ". Status is 'Pending'. NOTE: Admin accounts must be approved by the SuperAdmin.");
     }
 
     private void viewUsersSubMenu() {
         int choice;
         int maxChoice = 4;
         do {
-            System.out.println("\n--- VIEW USERS SUB-MENU ---");
-            System.out.println("1. View Student List");
-            System.out.println("2. View Instructor List");
-            System.out.println("3. View Admin List");
-            System.out.println("4. Back to Admin Dashboard");
-
-            System.out.print("Enter your choice (1-" + maxChoice + "): ");
+            System.out.println("\n --- VIEW USERS SUB-MENU ---");
+            System.out.println(" -----------------------------");
+            System.out.println("|  1. View Student List       |");
+            System.out.println("|  2. View Instructor List    |");
+            System.out.println("|  3. View Admin List         |");
+            System.out.println("|  4. Back to Admin Dashboard |");
+            System.out.println(" -----------------------------");
+            System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
 
             switch (choice) {
                 case 1: viewRecordsByType("Student"); break;
                 case 2: viewRecordsByType("Instructor"); break;
                 case 3: viewRecordsByType("Admin"); break;
-                case 4: System.out.println("Returning to Admin Dashboard..."); break;
+                case 4: System.out.println("  Returning to Admin Dashboard..."); break;
             }
         } while (choice != maxChoice);
     }
@@ -222,20 +228,22 @@ public class admindashboard {
         int choice;
         int maxChoice = 4;
         do {
-            System.out.println("\n--- EDIT USER SUB-MENU ---");
-            System.out.println("1. Edit Student Info");
-            System.out.println("2. Edit Instructor Info");
-            System.out.println("3. Edit Admin Info");
-            System.out.println("4. Back to Admin Dashboard");
+            System.out.println("\n  --- EDIT USER SUB-MENU ---");
+            System.out.println(" -------------------------------");
+            System.out.println("|  1. Edit Student Info         |");
+            System.out.println("|  2. Edit Instructor Info      |");
+            System.out.println("|  3. Edit Admin Info           |");
+            System.out.println("|  4. Back to Admin Dashboard   |");
+            System.out.println(" -------------------------------");
 
-            System.out.print("Enter your choice (1-" + maxChoice + "): ");
+            System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
 
             switch (choice) {
                 case 1: editUserInfo("Student"); break;
                 case 2: editUserInfo("Instructor"); break;
                 case 3: editUserInfo("Admin"); break;
-                case 4: System.out.println("Returning to Admin Dashboard..."); break;
+                case 4: System.out.println("  Returning to Admin Dashboard..."); break;
             }
         } while (choice != maxChoice);
     }
@@ -243,41 +251,41 @@ public class admindashboard {
     private void editUserInfo(String type) {
         viewRecordsByType(type); 
 
-        System.out.print("\nEnter the User ID of the " + type + " to EDIT: ");
+        System.out.print("\n  Enter the User ID of the " + type + " to EDIT: ");
         int id = Main2.getIntInput(sc, 1, Integer.MAX_VALUE); 
         sc.nextLine(); 
 
         
         Map<String, Object> user = getUserDetails(id);
         if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(type)) {
-            System.out.println("Error: User ID " + id + " not found or is not a " + type + ".");
+            System.out.println("  Error: User ID " + id + " not found or is not a " + type + ".");
             return;
         }
         
         String targetType = (String) user.get("u_type");
         if (targetType.equalsIgnoreCase("SuperAdmin") && !this.userType.equalsIgnoreCase("SuperAdmin")) {
-            System.out.println("Error: Only the SuperAdmin can modify the SuperAdmin account.");
+            System.out.println("  Error: Only the SuperAdmin can modify the SuperAdmin account.");
             return;
         }
         
-        System.out.print("Enter NEW Email (Current: " + user.get("u_email") + ", leave blank to skip): ");
+        System.out.print("  Enter NEW Email (Current: " + user.get("u_email") + ", leave blank to skip): ");
         String newEmail = sc.nextLine().trim();
         if (!newEmail.isEmpty()) {
             String checkEmailSql = "SELECT u_email FROM tbl_user WHERE u_email = ? AND u_id != ?";
             if (!db.fetchRecords(checkEmailSql, newEmail, id).isEmpty()) {
-                System.out.println("Error: New email already exists in the system. Edit cancelled.");
+                System.out.println("  Error: New email already exists in the system. Edit cancelled.");
                 return;
             }
             db.updateRecord("UPDATE tbl_user SET u_email = ? WHERE u_id = ?", newEmail, id);
-            System.out.println("Email updated.");
+            System.out.println("  Email updated.");
         }
         
-        System.out.print("Enter NEW Password (leave blank to keep current): ");
+        System.out.print("  Enter NEW Password (leave blank to keep current): ");
         String newPass = sc.nextLine().trim();
         if (!newPass.isEmpty()) {
             String hashedPass = db.hashPassword(newPass);
             db.updateRecord("UPDATE tbl_user SET u_pass = ? WHERE u_id = ?", hashedPass, id);
-            System.out.println("Password updated.");
+            System.out.println("  Password updated.");
         }
 
         if (type.equalsIgnoreCase("Student")) {
@@ -286,18 +294,18 @@ public class admindashboard {
             if (!studentResult.isEmpty()) {
                 Map<String, Object> studentInfo = studentResult.get(0);
                 
-                System.out.print("Enter NEW School ID (Current: " + studentInfo.get("s_schoolID") + ", leave blank to skip): ");
+                System.out.print("  Enter NEW School ID (Current: " + studentInfo.get("s_schoolID") + ", leave blank to skip): ");
                 String newSchoolId = sc.nextLine().trim();
                 if (!newSchoolId.isEmpty()) {
                     db.updateRecord("UPDATE tbl_student SET s_schoolID = ? WHERE s_u_id = ?", newSchoolId, id);
-                    System.out.println("Student ID updated.");
+                    System.out.println("  Student ID updated.");
                 }
                 
-                System.out.print("Enter NEW Student Name (Current: " + studentInfo.get("s_name") + ", leave blank to skip): ");
+                System.out.print("  Enter NEW Student Name (Current: " + studentInfo.get("s_name") + ", leave blank to skip): ");
                 String newName = sc.nextLine().trim();
                 if (!newName.isEmpty()) {
                     db.updateRecord("UPDATE tbl_student SET s_name = ? WHERE s_u_id = ?", newName, id);
-                    System.out.println("Student Name updated.");
+                    System.out.println("  Student Name updated.");
                 }
             }
         } else if (type.equalsIgnoreCase("Instructor")) {
@@ -306,17 +314,17 @@ public class admindashboard {
             if (!instructorResult.isEmpty()) {
                 Map<String, Object> instructorInfo = instructorResult.get(0);
                 
-                System.out.print("Enter NEW Instructor Name (Current: " + instructorInfo.get("i_name") + ", leave blank to skip): ");
+                System.out.print("  Enter NEW Instructor Name (Current: " + instructorInfo.get("i_name") + ", leave blank to skip): ");
                 String newName = sc.nextLine().trim();
                 if (!newName.isEmpty()) {
                     db.updateRecord("UPDATE tbl_instructor SET i_name = ? WHERE i_u_id = ?", newName, id);
-                    System.out.println("Instructor Name updated.");
+                    System.out.println("  Instructor Name updated.");
                 }
             }
         } 
         
 
-        System.out.println("\nSUCCESS: " + type + " information for User ID " + id + " updated.");
+        System.out.println("\n  SUCCESS: " + type + " information for User ID " + id + " updated.");
     }
     
     private void approveUserSubMenu() {
@@ -324,25 +332,26 @@ public class admindashboard {
         int maxChoice = 4;
         do {
             System.out.println("\n--- APPROVE USER SUB-MENU ---");
-            System.out.println("1. Approve Student Account");
-            System.out.println("2. Approve Instructor Account");
-            System.out.println("3. Approve Admin Account");
-            System.out.println("4. Back to Admin Dashboard");
-
-            System.out.print("Enter your choice (1-" + maxChoice + "): ");
+            System.out.println(" -------------------------------");
+            System.out.println("|  1. Approve Student Account   |");
+            System.out.println("|  2. Approve Instructor Account|");
+            System.out.println("|  3. Approve Admin Account     |");
+            System.out.println("|  4. Back to Admin Dashboard   |");
+            System.out.println(" -------------------------------");
+            System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
 
             switch (choice) {
                 case 1: approveUserByType("Student"); break;
                 case 2: approveUserByType("Instructor"); break;
                 case 3: approveUserByType("Admin"); break;
-                case 4: System.out.println("Returning to Admin Dashboard..."); break;
+                case 4: System.out.println("  Returning to Admin Dashboard..."); break;
             }
         } while (choice != maxChoice);
     }
 
     private void approveUserByType(String type) {
-        System.out.println("\n--- PENDING " + type.toUpperCase() + " ACCOUNTS ---\n");
+        System.out.println("\n   --- PENDING " + type.toUpperCase() + " ACCOUNTS ---\n");
         String sql;
         String[] headers;
         String[] columns;
@@ -369,24 +378,24 @@ public class admindashboard {
         
         List<Map<String, Object>> records = db.fetchRecords(sql);
         if (records.isEmpty()) {
-            System.out.println("No " + type.toLowerCase() + " accounts are currently pending approval.");
+            System.out.println("  No " + type.toLowerCase() + " accounts are currently pending approval.");
             return;
         }
         db.viewRecords(records, headers, columns);
 
-        System.out.print("\nEnter the User ID of the " + type + " to APPROVE: ");
+        System.out.print("\n  Enter the User ID of the " + type + " to APPROVE: ");
         int id = Main2.getIntInput(sc, 1, Integer.MAX_VALUE); 
         sc.nextLine(); 
 
         Map<String, Object> user = getUserDetails(id);
         if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(type) || !((String)user.get("u_status")).equalsIgnoreCase("Pending")) {
-            System.out.println("Error: User ID " + id + " not found or is not a pending " + type + ".");
+            System.out.println("  Error: User ID " + id + " not found or is not a pending " + type + ".");
             return;
         }
         
         String updateSql = "UPDATE tbl_user SET u_status = 'Approved' WHERE u_id = ?";
         db.updateRecord(updateSql, id);
-        System.out.println("\nSUCCESS: User ID " + id + " (" + type + ") has been APPROVED (Status set to 'Approved').");
+        System.out.println("\n  SUCCESS: User ID " + id + " (" + type + ") has been APPROVED (Status set to 'Approved').");
     }
 
     private void handleAccountStatus() {
@@ -396,82 +405,83 @@ public class admindashboard {
         
         do {
             System.out.println("\n--- MANAGE ACCOUNT STATUS SUB-MENU ---");
-            System.out.println("1. Manage Student Account Status");
-            System.out.println("2. Manage Instructor Account Status");
-            System.out.println("3. Manage Admin Account Status");
-            System.out.println("4. Back to Admin Dashboard");
-
-            System.out.print("Enter your choice (1-" + maxChoice + "): ");
+            System.out.println(" ------------------------------------------");
+            System.out.println("|  1. Manage Student Account Status        |");
+            System.out.println("|  2. Manage Instructor Account Status     |");
+            System.out.println("|  3. Manage Admin Account Status          |");
+            System.out.println("|  4. Back to Admin Dashboard              |");
+            System.out.println(" ------------------------------------------");
+            System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
 
             switch (choice) {
                 case 1: targetType = "Student"; break;
                 case 2: targetType = "Instructor"; break;
                 case 3: targetType = "Admin"; break;
-                case 4: System.out.println("Returning to Admin Dashboard..."); return;
+                case 4: System.out.println("  Returning to Admin Dashboard..."); return;
             }
             
             viewRecordsByType(targetType); 
 
-            System.out.print("\nEnter the User ID of the " + targetType + " to MANAGE: ");
+            System.out.print("\n  Enter the User ID of the " + targetType + " to MANAGE: ");
             int id = Main2.getIntInput(sc, 1, Integer.MAX_VALUE); 
             sc.nextLine(); 
 
             Map<String, Object> user = getUserDetails(id);
             if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(targetType)) {
-                System.out.println("Error: User ID " + id + " not found or is not a " + targetType + ".");
+                System.out.println("  Error: User ID " + id + " not found or is not a " + targetType + ".");
                 continue;
             }
             
             String user_type = (String) user.get("u_type");
             if (user_type.equalsIgnoreCase("SuperAdmin") && !this.userType.equalsIgnoreCase("SuperAdmin")) {
-                System.out.println("Error: Only the SuperAdmin can manage the SuperAdmin account status.");
+                System.out.println("  Error: Only the SuperAdmin can manage the SuperAdmin account status.");
                 continue;
             }
             if (id == this.userId && !user_type.equalsIgnoreCase("SuperAdmin")) {
-                System.out.println("Error: Cannot manage your own account status outside of SuperAdmin access. Log out to test changes.");
+                System.out.println("  Error: Cannot manage your own account status outside of SuperAdmin access. Log out to test changes.");
                 continue;
             }
             if (id == this.userId && !user_type.equalsIgnoreCase("SuperAdmin")) {
-                System.out.println("Error: Cannot manage your own account status outside of SuperAdmin access. Log out to test changes.");
+                System.out.println("  Error: Cannot manage your own account status outside of SuperAdmin access. Log out to test changes.");
                 continue;
             }
             String currentStatus = (String) user.get("u_status");
             String newStatus;
             
-            if (currentStatus.equalsIgnoreCase("Active") || currentStatus.equalsIgnoreCase("Pending")) {
-                System.out.print("Account is currently '" + currentStatus + "'. Do you want to DISABLE (set to Inactive) it? (y/n): ");
+            if (currentStatus.equalsIgnoreCase("Approved") || currentStatus.equalsIgnoreCase("Pending")) {
+                System.out.print("  Account is currently '" + currentStatus + "'. Do you want to DISABLE (set to Inactive) it? (y/n): ");
                 String confirm = sc.nextLine().trim();
                 if (confirm.equalsIgnoreCase("y")) {
                     newStatus = "Inactive";
                 } else {
-                    System.out.println("Operation cancelled.");
+                    System.out.println("  Operation cancelled.");
                     continue;
                 }
             } 
             else if (currentStatus.equalsIgnoreCase("Inactive")) {
-                System.out.print("Account is currently 'Inactive'. Do you want to RE-ACTIVATE (set to Active) it? (y/n): ");
+                System.out.print("   Account is currently 'Inactive'. Do you want to RE-ACTIVATE (set to Approved) it? (y/n): ");
                 String confirm = sc.nextLine().trim();
                 if (confirm.equalsIgnoreCase("y")) {
-                    newStatus = "Active"; 
+                    newStatus = "Approved"; 
                 } else {
-                    System.out.println("Operation cancelled.");
+                    System.out.println("  Operation cancelled.");
                     continue;
                 }
             } else {
-                System.out.println("Unknown account status: " + currentStatus);
+                System.out.println("  Unknown account status: " + currentStatus);
                 continue;
             }
 
             String sql = "UPDATE tbl_user SET u_status = ? WHERE u_id = ?";
             db.updateRecord(sql, newStatus, id);
-            System.out.println("\nSUCCESS: User ID " + id + " (" + targetType + ") status updated to '" + newStatus + "'.");
+            System.out.println("\n  SUCCESS: User ID " + id + " (" + targetType + ") status updated to '" + newStatus + "'.");
 
         } while (choice != maxChoice);
     }
     
     private void viewSystemEvaluations() {
-        System.out.println("\n--- ALL EVALUATIONS (SYSTEM-WIDE) ---\n");
+        System.out.println("\n   --- ALL EVALUATIONS (SYSTEM-WIDE) ---\n");
         String sql = "SELECT t1.e_id, t2.s_name AS student_name, t3.i_name AS instructor_name, " +
                      "t1.e_average_rating, t1.e_year, t1.e_sem, t1.e_date " +
                      "FROM tbl_evaluation t1 " +
@@ -482,7 +492,7 @@ public class admindashboard {
         List<Map<String, Object>> records = db.fetchRecords(sql);
 
         if (records.isEmpty()) {
-            System.out.println("No current evaluations found in the system.");
+            System.out.println("  No current evaluations found in the system.");
             return;
         }
         
@@ -504,7 +514,6 @@ public class admindashboard {
         db.viewRecords(records, headers, columns); 
         
         String totalAvgSql = "SELECT AVG(CAST(e_average_rating AS REAL)) AS overall_avg FROM tbl_evaluation";
-        // Uses db.fetchRecords()
         List<Map<String, Object>> avgResult = db.fetchRecords(totalAvgSql);
         
         if (!avgResult.isEmpty()) {
@@ -517,20 +526,20 @@ public class admindashboard {
                 } catch (Exception e) { }
             }
             
-            String e = "*================================================*"; 
+            String e = "  *================================================*"; 
             System.out.println("\n" + e);
-            System.out.printf(" TOTAL SYSTEM-WIDE AVERAGE RATING: %.2f / 5.0\n", overallAvg);
+            System.out.printf("   TOTAL SYSTEM-WIDE AVERAGE RATING: %.2f / 5.0\n", overallAvg);
             System.out.println(e);
         }
     }
 
 
     private void archiveEvaluation() {
-        System.out.println("\n--- ARCHIVE SPECIFIC EVALUATION ---\n");
+        System.out.println("\n   --- ARCHIVE SPECIFIC EVALUATION ---\n");
 
         viewEvaluations(); 
 
-        System.out.print("\nEnter the **Evaluation ID (e_id)** you want to ARCHIVE: ");
+        System.out.print("\n  Enter the **Evaluation ID (e_id)** you want to ARCHIVE: ");
 
         int evalIdToArchive = Main2.getIntInput(sc, 1, 99999); 
         sc.nextLine();
@@ -540,23 +549,23 @@ public class admindashboard {
         List<Map<String, Object>> evalRecord = db.fetchRecords(findEvalSql, evalIdToArchive);
 
         if (evalRecord.isEmpty()) {
-            System.out.println("No active evaluation found with ID: " + evalIdToArchive + ". Nothing to archive.");
+            System.out.println("  No active evaluation found with ID: " + evalIdToArchive + ". Nothing to archive.");
             return;
         }
 
         String schoolID = (String) evalRecord.get(0).get("s_schoolID");
 
-        System.out.print("WARNING: This will permanently move Evaluation ID " + evalIdToArchive + " (for student " + schoolID + ") to the archive. Continue? (y/n): ");
+        System.out.print("  WARNING: This will permanently move Evaluation ID " + evalIdToArchive + " (for student " + schoolID + ") to the archive. Continue? (y/n): ");
         String confirm = sc.nextLine().trim();
         if (!confirm.equalsIgnoreCase("y")) {
-            System.out.println("Archiving operation cancelled.");
+            System.out.println("  Archiving operation cancelled.");
             return;
         }
 
         Connection conn = null;
         try {
             conn = db.getConnection(); 
-            if (conn == null) throw new SQLException("Database connection failed.");
+            if (conn == null) throw new SQLException("  Database connection failed.");
 
             conn.setAutoCommit(false);
             String evalInsertSql = "INSERT INTO tbl_archive_evaluation SELECT * FROM tbl_evaluation WHERE e_id = ?";
@@ -573,17 +582,17 @@ public class admindashboard {
 
             conn.commit(); 
 
-            System.out.println("\nSUCCESS: Evaluation ID " + evalIdToArchive + " has been moved to the archive.");
-            System.out.println("NOTE: This evaluation is now removed from the current tables.");
+            System.out.println("\n  SUCCESS: Evaluation ID " + evalIdToArchive + " has been moved to the archive.");
+            System.out.println("  NOTE: This evaluation is now removed from the current tables.");
 
         } catch (SQLException e) {
-            System.out.println("Archiving failed due to a database error. Rolling back changes: " + e.getMessage());
+            System.out.println("  Archiving failed due to a database error. Rolling back changes: " + e.getMessage());
             try {
                 if (conn != null) {
                    conn.rollback();
                 }
             } catch (SQLException ex) {
-                System.out.println("Rollback failed.");
+                System.out.println("  Rollback failed.");
             }
         } finally {
             try {
@@ -591,12 +600,12 @@ public class admindashboard {
                     conn.setAutoCommit(true);
                 }
             } catch (SQLException e) {
-                System.out.println("Error resetting AutoCommit: " + e.getMessage());
+                System.out.println("  Error resetting AutoCommit: " + e.getMessage());
             }
         }
     }
 private void viewEvaluations() {
-    System.out.println("\n--- ALL EVALUATIONS IN THE SYSTEM ---\n");
+    System.out.println("\n   --- ALL EVALUATIONS IN THE SYSTEM ---\n");
 
     String sql = "SELECT t1.e_id, t2.s_name AS student_name, t3.i_name AS instructor_name, " +
                  "t1.e_average_rating, t1.e_year, t1.e_sem, t1.e_date " +
@@ -635,9 +644,9 @@ private void viewEvaluations() {
             } catch (NumberFormatException e) { }
         }
         
-        String e = "*================================================*"; 
+        String e = "  *================================================*"; 
         System.out.println("\n" + e);
-        System.out.printf(" TOTAL SYSTEM-WIDE AVERAGE RATING: %.2f / 5.0\n", overallAvg);
+        System.out.printf("   TOTAL SYSTEM-WIDE AVERAGE RATING: %.2f / 5.0\n", overallAvg);
         System.out.println(e);
     }
 }

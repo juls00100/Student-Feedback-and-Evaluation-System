@@ -34,18 +34,20 @@ public static String getSuperAdminEmail(config db) {
 
         int choice;
         do {
-            System.out.println("\n--- MAIN MENU ---");
-            System.out.println("1. REGISTER NEW USER");
-            System.out.println("2. LOG IN");
-            System.out.println("3. EXIT");
-            System.out.print("Enter your choice: ");
+            System.out.println("\n   --- MAIN MENU ---");
+            System.out.println(" -----------------------");
+            System.out.println("|  1. REGISTER NEW USER |");
+            System.out.println("|  2. LOG IN            |");
+            System.out.println("|  3. EXIT              |");
+            System.out.println(" -----------------------");
+            System.out.print("  Enter your choice: ");
 
             choice = getIntInput(sc, 1, 3); 
 
             switch (choice) {
                 case 1: registerUser(sc, db); break;
                 case 2: loginUser(sc, db); break;
-                case 3: System.out.println("SEE YAHH AROUND USERR!"); break;
+                case 3: System.out.println("  SEE YAHH AROUND USERR!"); break;
             }
         } while (choice != 3);
     }
@@ -55,10 +57,10 @@ public static String getSuperAdminEmail(config db) {
     List<Map<String, Object>> userExistsResult = db.fetchRecords(sql);
 
     if (userExistsResult.isEmpty()) {
-        System.out.println("\n--- SUPER ADMIN INITIALIZATION ---");
-        System.out.print("Enter Super Admin Email: "); 
+        System.out.println("\n|--- SUPER ADMIN INITIALIZATION ---|");
+        System.out.print("  Enter Super Admin Email: "); 
         String email = sc.next();
-        System.out.print("Enter Super Admin Password: ");
+        System.out.print("  Enter Super Admin Password: ");
         String pass = sc.next();
 
         String hashedPass = db.hashPassword(pass);
@@ -66,22 +68,25 @@ public static String getSuperAdminEmail(config db) {
         String insertSql = "INSERT INTO tbl_user(u_email, u_pass, u_type, u_status) VALUES(?, ?, ?, ?)";
         db.addRecord(insertSql, email, hashedPass, "SuperAdmin", "Active");
 
-        System.out.println("Super Admin account initialized with email: " + email);
+        System.out.println("  Super Admin account initialized with email: " + email);
     } else {
-        System.out.println("Super Admin already exists");
+        System.out.println("  Feel free to reach admins and superadmin for guidance!");
     }
 }
 
 
     private static void registerUser(Scanner sc, config db) {
-        System.out.println("\n--- REGISTER ---");
-        System.out.println("Select User Type to Register:");
-        System.out.println("1. Student");
-        System.out.println("2. Instructor");
-        System.out.println("3. Admin ");
-        System.out.print("Enter your choice: ");
+        System.out.println("\n        --- REGISTER --- ");
+        System.out.println("----------------------------------");
+        System.out.println("|  Select User Type to Register: |");
+        System.out.println("|  1. Student                    |");
+        System.out.println("|  2. Instructor                 |");
+        System.out.println("|  3. Admin                      |");
+        System.out.println("|  4. Exit                       |");
+        System.out.println("----------------------------------");
+        System.out.print("   Enter your choice: ");
 
-        int typeChoice = getIntInput(sc, 1, 3);
+        int typeChoice = getIntInput(sc, 1, 4);
         sc.nextLine(); 
 
         String type;
@@ -89,6 +94,7 @@ public static String getSuperAdminEmail(config db) {
             case 1: type = "Student"; break;
             case 2: type = "Instructor"; break;
             case 3: type = "Admin"; break;
+            case 4: System.out.println("   Loggin out"); return;
             default: return; 
         }
 
@@ -153,13 +159,14 @@ public static String getSuperAdminEmail(config db) {
         while (true) {
             sc.nextLine();
 
-            System.out.println("\n--- LOG IN ---");
-            System.out.println("*************************************");
-            System.out.println("Type 'exit' to return to Main Menu.");
-            System.out.println("*************************************");
+            System.out.println("\n           --- LOG IN ---");
+            System.out.println("|------------------------------------|");
+            System.out.println("  Type 'exit' to return to Main Menu.");
+            System.out.println("|------------------------------------|");
 
             System.out.print("Enter Email: ");
             String email = sc.nextLine().trim();
+            //sc.nextLine();
 
             if (email.equalsIgnoreCase("exit")) {
                 System.out.println("Returning to Main Menu.");
@@ -211,7 +218,7 @@ public static String getSuperAdminEmail(config db) {
                 return;
 
             } else {
-                System.out.println("Invalid email or password. Please click ENTER to try again or type 'exit' for exiting.");
+                System.out.println("Invalid email or password. Please hit 'ENTER' button.");
             }
         }
     }

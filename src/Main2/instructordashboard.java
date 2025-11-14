@@ -20,16 +20,18 @@ public class instructordashboard {
     public void runInstructorDashboard() {
         int choice;
         do {
-            System.out.println("\n--- INSTRUCTOR DASHBOARD ---");
-            System.out.println("1. VIEW EVALUATIONS RECEIVED");
-            System.out.println("2. EXIT");
-            System.out.print("Enter your choice: ");
+            System.out.println("\n     --- INSTRUCTOR DASHBOARD ---");
+            System.out.println(" -----------------------------------");
+            System.out.println("|  1. VIEW EVALUATIONS RECEIVED     |");
+            System.out.println("|  2. EXIT                          |");
+            System.out.println(" -----------------------------------");
+            System.out.print("  Enter your choice: ");
 
             choice = Main2.getIntInput(sc, 1, 2);
 
             switch (choice) {
                 case 1: viewEvaluations(); break;
-                case 2: System.out.println("LOGGING OUT..."); break;
+                case 2: System.out.println("  LOGGING OUT..."); break;
             }
         } while (choice != 2);
     }
@@ -45,7 +47,7 @@ public class instructordashboard {
 
 
     private void viewEvaluations() {
-        System.out.println("\n--- EVALUATIONS RECEIVED ---");
+        System.out.println("\n                    --- EVALUATIONS RECEIVED ---");
         
         int instructorId = getInstructorId();
         if (instructorId == -1) {
@@ -63,11 +65,10 @@ public class instructordashboard {
         List<Map<String, Object>> records = db.fetchRecords(sql, instructorId);
 
         if (records.isEmpty()) {
-            System.out.println("No evaluation records found.");
+            System.out.println("  No evaluation records found.");
             return;
         }
         
-        System.out.println(" -----------------------------------------------");
         String[] headers = {"Eval ID", "Avg Rating", "Remarks", "Year", "Sem", "Date"};
         String[] columns = {"e_id", "e_average_rating", "e_remarks", "e_year", "e_sem", "e_date"};
 
@@ -104,16 +105,18 @@ public class instructordashboard {
                         overallAvg = Double.parseDouble(avgObj.toString());
                     }
                 } catch (NumberFormatException e) {
-                     System.out.println("Warning: Could not parse overall average rating.");
+                     System.out.println("  Warning: Could not parse overall average rating.");
                 }
             }
-        System.out.println(" ----------------------------------------------");
 
-            String e = "*=========================================*"; 
             
-            System.out.println("\n" + e);
-            System.out.printf(" TOTAL OVERALL AVERAGE RATING: %.2f / 5.0\n", overallAvg);
-            System.out.println(e);
+            //String f = "   ----------------------------------------------";
+            
+            System.out.println("--------------------------------------------");
+            System.out.printf("| TOTAL OVERALL AVERAGE RATING: %.2f / 5.0 |\n", overallAvg);
+            System.out.println("--------------------------------------------");
+
+            
         }
     }
 }
