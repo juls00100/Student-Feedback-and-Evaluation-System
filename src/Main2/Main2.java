@@ -208,10 +208,11 @@ public static String getSuperAdminEmail(config db) {
                         instructorDash.runInstructorDashboard();
                         break;
                     case "Admin":
-                    case "SuperAdmin":
+                        case "SuperAdmin":
                         admindashboard adminDash = new admindashboard(db, sc, userId);
                         adminDash.runAdminDashboard();
                         break;
+                    
                     default:
                         System.out.println("Unknown user type. Access denied.");
                 }

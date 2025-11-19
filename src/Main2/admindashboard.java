@@ -32,7 +32,11 @@ public class admindashboard {
 
     public void runAdminDashboard() {
         int choice;
-        int maxChoice = 8; 
+        int maxChoice = 8;
+        boolean isSuperAdmin = this.userType.equalsIgnoreCase("SuperAdmin");
+        if (isSuperAdmin) {
+            maxChoice = 10;
+        } 
         
         do {
             System.out.println("");
@@ -45,7 +49,11 @@ public class admindashboard {
             System.out.println("|  5. MANAGE ACCOUNT STATUS       |"); 
             System.out.println("|  6. VIEW EVALUATIONS LIST       |"); 
             System.out.println("|  7. ARCHIVE STUDENT's EVALUATION|"); 
-            System.out.println("|  8. EXIT ADMIN DASHBOARD        |"); 
+            System.out.println("|  8. EXIT ADMIN DASHBOARD        |");
+            if (isSuperAdmin) {
+                System.out.println("|  9. DELETE A USER (SuperAdmin)  |");
+                System.out.println("| 10. DELETE ARCHIVED EVALUATION  |");
+            }
             System.out.println(" ---------------------------------");
             System.out.print("  Enter your choice (1-" + maxChoice + "): ");
             choice = Main2.getIntInput(sc, 1, maxChoice); 
@@ -59,10 +67,235 @@ public class admindashboard {
                 case 6: viewSystemEvaluations(); break; 
                 case 7: archiveEvaluation(); break; 
                 case 8: System.out.println("  LOGGING OUT..."); break;
+                case 9:
+                    if (isSuperAdmin) {
+                        deleteUser();
+                    } else {
+                        System.out.println("  Access Denied: Option 9 is for SuperAdmin only.");
+                    }
+                    break;
+                case 10:
+                    if (isSuperAdmin) {
+                        deleteArchivedEvaluation();
+                    } else {
+                        System.out.println("  Access Denied: Option 10 is for SuperAdmin only.");
+                    }
+                    break;
             }
-        } while (choice != maxChoice);
-    }
+        } while (choice != 8);
+        
+    }private void deleteUser() {
+        System.out.println("\n   --- SUPERADMIN: MULTIPLE DELETION OF USERS ---\n");
+        if (!this.userType.equalsIgnoreCase("SuperAdmin")) {
+            System.out.println("  Access Denied: Only SuperAdmin can delete users.");
+            return;
+        }
 
+       // System.out.println("  *** Listing all deletable users for reference ***\n");
+        viewRecordsByType("Student");
+        viewRecordsByType("Instructor");
+        viewRecordsByType("Admin"); 
+        //System.out.println("\n  ************************************************\n");
+        
+            System.out.println("PLEASE READ ME WITH CAUTION!!!");
+        System.out.print("  Please enter the NUMBER of users TO DELETE:");
+        int numToDelete = Main2.getIntInput(sc, 1, Integer.MAX_VALUE);
+        sc.nextLine(); 
+        
+        System.out.print("  You are about TO DELETE " + numToDelete + " user(s). Continue? (y/n): ");
+        String initialConfirm = sc.nextLine().trim();
+        if (!initialConfirm.equalsIgnoreCase("y")) {
+            System.out.println("  Mass deletion cancelled.");
+            return;
+        }
+
+        int successfulDeletions = 0;
+        
+        for (int i = 1; i <= numToDelete; i++) {
+            System.out.println("\n  --- Processing User #" + i + " of " + numToDelete + " ---");
+            System.out.print("  Enter the User ID of the user to PERMANENTLY DELETE: ");
+            int id = Main2.getIntInput(sc, 1, Integer.MAX_VALUE);
+            sc.nextLine(); 
+
+            Map<String, Object> user = getUserDetails(id);
+            if (user == null) {
+                System.out.println("  [SKIP] Error: User ID " + id + " not found. Skipping.");
+                continue;
+            }
+            
+            String userTypeToDelete = (String) user.get("u_type");
+            
+            if (id == this.userId) {
+                System.out.println("  [SKIP] Error: You cannot delete your own account (ID " + id + "). Skipping.");
+                continue;
+            }
+            
+            if (userTypeToDelete.equalsIgnoreCase("SuperAdmin")) {
+                System.out.println("  [SKIP] CRITICAL ERROR: Cannot delete a SuperAdmin account (ID " + id + ") to maintain system integrity. Skipping.");
+                continue;
+            }
+
+            System.out.print("  Confirm deletion of User ID " + id + " (" + userTypeToDelete + ")? (y/n): ");
+            String confirm = sc.nextLine().trim();
+            if (!confirm.equalsIgnoreCase("y")) {
+                System.out.println("  Deletion operation for ID " + id + " cancelled. Skipping.");
+                continue;
+            }
+
+            Connection conn = null;
+            try {
+                conn = db.getConnection(); 
+                if (conn == null) throw new SQLException("  Database connection failed.");
+
+                conn.setAutoCommit(false);
+                
+                if (userTypeToDelete.equalsIgnoreCase("Student")) {
+                    db.deleteRecord("DELETE FROM tbl_student WHERE s_u_id = ?", id);
+                } else if (userTypeToDelete.equalsIgnoreCase("Instructor")) {
+                    db.deleteRecord("DELETE FROM tbl_instructor WHERE i_u_id = ?", id);
+                }
+                db.deleteRecord("DELETE FROM tbl_user WHERE u_id = ?", id); 
+
+                conn.commit(); 
+
+                System.out.println("  [SUCCESS] User ID " + id + " (" + userTypeToDelete + ") has been PERMANENTLY DELETED.");
+                successfulDeletions++;
+
+            } catch (SQLException e) {
+                System.out.println("  [FAILURE] Deletion of ID " + id + " failed due to a database error. Rolling back changes: " + e.getMessage());
+                try {
+                    if (conn != null) {
+                       conn.rollback();
+                    }
+                } catch (SQLException ex) {
+                    System.out.println("  Rollback failed.");
+                }
+            } finally {
+                try {
+                    if (conn != null) {
+                        conn.setAutoCommit(true);
+                    }
+                } catch (SQLException e) {
+                    System.out.println("  Error resetting AutoCommit: " + e.getMessage());
+                }
+            }
+        }
+        System.out.println("\n  --- MASS DELETION SUMMARY ---");
+        System.out.println("  " + successfulDeletions + " user(s) successfully deleted out of " + numToDelete + " attempted deletions.");
+        //System.out.println("  -----------------------------\n");
+    }
+    
+    private void deleteArchivedEvaluation() {
+        System.out.println("\n   --- SUPERADMIN: MULTI DELETION ARCHIVED EVALUATIONS ---\n");
+        if (!this.userType.equalsIgnoreCase("SuperAdmin")) {
+            System.out.println("  Access Denied: Only SuperAdmin can delete archived evaluations.");
+            return;
+        }
+
+        String sql = "SELECT t1.e_id, t2.s_name AS student_name, t3.i_name AS instructor_name, " +
+                     "t1.e_average_rating, t1.e_year, t1.e_sem, t1.e_date " +
+                     "FROM tbl_archive_evaluation t1 " +
+                     "INNER JOIN tbl_student t2 ON t1.s_schoolID = t2.s_schoolID " +
+                     "INNER JOIN tbl_instructor t3 ON t1.i_id = t3.i_id " +
+                     "ORDER BY t1.e_date DESC";
+                     
+        List<Map<String, Object>> records = db.fetchRecords(sql);
+        if (records.isEmpty()) {
+            System.out.println("  No archived evaluations found. Returning.");
+            return;
+        }
+        
+        for (Map<String, Object> record : records) {
+            Object avgObj = record.get("e_average_rating");
+            if (avgObj != null) {
+                try {
+                    double rating = (avgObj instanceof Number) ? ((Number) avgObj).doubleValue() : Double.parseDouble(avgObj.toString());
+                    record.put("e_average_rating", String.format("%.2f", rating));
+                } catch (Exception e) {
+                    record.put("e_average_rating", "N/A");
+                }
+            }
+        }
+        
+        String[] headers = {"Archived Eval ID", "Student", "Instructor", "Avg Rating", "Year", "Sem", "Date"};
+        String[] columns = {"e_id", "student_name", "instructor_name", "e_average_rating", "e_year", "e_sem", "e_date"};
+        db.viewRecords(records, headers, columns); 
+        //System.out.println("\n  ************************************************\n");
+
+
+        System.out.print("  NUMBER OF Archive Evaluations you want to delete?:");
+        int numToDelete = Main2.getIntInput(sc, 1, Integer.MAX_VALUE); 
+        sc.nextLine();
+
+        System.out.print("  You are about TO DELETE " + numToDelete + " archived evaluation record(s). Continue? (y/n): ");
+        String initialConfirm = sc.nextLine().trim();
+        if (!initialConfirm.equalsIgnoreCase("y")) {
+            System.out.println("  Mass deletion operation cancelled.");
+            return;
+        }
+
+        int successfulDeletions = 0;
+
+        for (int i = 1; i <= numToDelete; i++) {
+            System.out.println("\n  --- Processing Evaluation #" + i + " of " + numToDelete + " ---");
+            System.out.print("  Enter the **Archived Evaluation ID (e_id)** to PERMANENTLY DELETE: ");
+            int evalIdToDelete = Main2.getIntInput(sc, 1, 99999); 
+            sc.nextLine();
+
+            String findEvalSql = "SELECT e_id FROM tbl_archive_evaluation WHERE e_id = ?";
+            if (db.fetchRecords(findEvalSql, evalIdToDelete).isEmpty()) {
+                System.out.println("  [SKIP] No archived evaluation found with ID: " + evalIdToDelete + ". Skipping.");
+                continue;
+            }
+
+            System.out.print("  Confirm deletion of Archived Evaluation ID " + evalIdToDelete + "? (y/n): ");
+            String confirm = sc.nextLine().trim();
+            if (!confirm.equalsIgnoreCase("y")) {
+                System.out.println("  Deletion operation for ID " + evalIdToDelete + " cancelled. Skipping.");
+                continue;
+            }
+
+            Connection conn = null;
+            try {
+                conn = db.getConnection(); 
+                if (conn == null) throw new SQLException("  Database connection failed.");
+
+                conn.setAutoCommit(false);
+                
+                String clearScoreSql = "DELETE FROM tbl_archive_eval_scores WHERE e_id = ?";
+                db.deleteRecord(clearScoreSql, evalIdToDelete);
+
+                String clearEvalSql = "DELETE FROM tbl_archive_evaluation WHERE e_id = ?";
+                db.deleteRecord(clearEvalSql, evalIdToDelete); 
+                
+                conn.commit(); 
+
+                System.out.println("  [SUCCESS] Archived Evaluation ID " + evalIdToDelete + " has been PERMANENTLY DELETED.");
+                successfulDeletions++;
+
+            } catch (SQLException e) {
+                System.out.println("  [FAILURE] Deletion of ID " + evalIdToDelete + " failed due to a database error. Rolling back changes: " + e.getMessage());
+                try {
+                    if (conn != null) {
+                       conn.rollback();
+                    }
+                } catch (SQLException ex) {
+                    System.out.println("  Rollback failed.");
+                }
+            } finally {
+                try {
+                    if (conn != null) {
+                        conn.setAutoCommit(true);
+                    }
+                } catch (SQLException e) {
+                    System.out.println("  Error resetting AutoCommit: " + e.getMessage());
+                }
+            }
+        }
+        System.out.println("\n  --- MASS DELETION SUMMARY ---");
+        System.out.println("  " + successfulDeletions + " evaluation record(s) successfully deleted out of " + numToDelete + " attempted deletions.");
+        //System.out.println("  -----------------------------\n");
+    }
     private Map<String, Object> getUserDetails(int id) {
         String sql = "SELECT u_id, u_email, u_type, u_status FROM tbl_user WHERE u_id = ?";
         List<Map<String, Object>> result = db.fetchRecords(sql, id);
@@ -77,7 +310,7 @@ public class admindashboard {
 
         if (type.equalsIgnoreCase("Student")) {
             
-        System.out.println("\n                             --- ALL " + type.toUpperCase() + "S ---");
+        System.out.println("\n                  --- ALL " + type.toUpperCase() + "S ---");
             sql = "SELECT t1.u_id, t2.s_name, t2.s_schoolID, t1.u_email, t1.u_status FROM tbl_user t1 " +
                   "INNER JOIN tbl_student t2 ON t1.u_id = t2.s_u_id " +
                   "WHERE t1.u_type = 'Student'";
@@ -151,13 +384,13 @@ public class admindashboard {
             }
             System.out.println("  Error: Email already exists. Please enter a different email.");
         }
-
+        
         System.out.print("  Enter password: ");
         String pass = sc.nextLine().trim();
         String hashedPass = db.hashPassword(pass);
 
         String userSql = "INSERT INTO tbl_user(u_email, u_pass, u_type, u_status) VALUES(?, ?, ?, ?)";
-        db.addRecord(userSql, email, hashedPass, type, "Pending");
+        db.addRecord(userSql, email, hashedPass, type, "Approved");
         
         String getIdSql = "SELECT u_id FROM tbl_user WHERE u_email = ?";
         List<Map<String, Object>> result = db.fetchRecords(getIdSql, email);
@@ -169,16 +402,26 @@ public class admindashboard {
         int newUserId = promptForCredentialsAndInsertUser("Student");
         if (newUserId == -1) return;
 
-        System.out.print("  Enter Student ID (e.g., scc-00-01): ");
-        String schoolId = sc.nextLine().trim();
-        
+        String schoolId;
+        while (true) {
+            System.out.print("  Enter Student ID (e.g., scc-00-01): ");
+            schoolId = sc.nextLine().trim();
+            
+            String checkschoolIDSql = "SELECT s_schoolID FROM tbl_student WHERE s_schoolID = ?";
+
+            if (db.fetchRecords(checkschoolIDSql, schoolId).isEmpty()) { 
+                break;
+            }
+            System.out.println("  Error: SCHOOL ID already exists. Please enter a different School ID.");
+        }
+
         System.out.print("  Enter Student Name: ");
         String name = sc.nextLine().trim();
 
         String studentSql = "INSERT INTO tbl_student(s_u_id, s_schoolID, s_name) VALUES(?, ?, ?)";
         db.addRecord(studentSql, newUserId, schoolId, name);
-        
-        System.out.println("\n  SUCCESS: New Student added with User ID " + newUserId + ". Status is 'Pending' and requires approval.");
+
+        System.out.println("\n  SUCCESS: New Student added with User ID " + newUserId + ". Approved automatically.");
     }
 
     private void addInstructor() {
@@ -249,18 +492,36 @@ public class admindashboard {
     }
 
     private void editUserInfo(String type) {
-        viewRecordsByType(type); 
+    viewRecordsByType(type); 
 
-        System.out.print("\n  Enter the User ID of the " + type + " to EDIT: ");
-        int id = Main2.getIntInput(sc, 1, Integer.MAX_VALUE); 
+    int id;
+    Map<String, Object> user;
+    
+    while (true) {
+        System.out.print("\n  Enter the User ID of the " + type + " to EDIT (Enter 0 to cancel): ");
+        id = Main2.getIntInput(sc, 0, Integer.MAX_VALUE); 
         sc.nextLine(); 
 
-        
-        Map<String, Object> user = getUserDetails(id);
-        if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(type)) {
-            System.out.println("  Error: User ID " + id + " not found or is not a " + type + ".");
-            return;
+        if (id == 0) {
+            System.out.println("  Edit operation cancelled. Returning to sub-menu.");
+            return; 
         }
+
+        user = getUserDetails(id);
+        if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(type)) {
+            System.out.println("  Error: User ID " + id + " not found or is not a " + type + ". Please try again.");
+            continue; 
+        }
+        
+        String targetType = (String) user.get("u_type");
+        if (targetType.equalsIgnoreCase("SuperAdmin") && !this.userType.equalsIgnoreCase("SuperAdmin")) {
+            System.out.println("  Error: Only the SuperAdmin can modify the SuperAdmin account. Please try again.");
+            continue; 
+        }
+        
+        break;
+    }
+    
         
         String targetType = (String) user.get("u_type");
         if (targetType.equalsIgnoreCase("SuperAdmin") && !this.userType.equalsIgnoreCase("SuperAdmin")) {
@@ -383,15 +644,27 @@ public class admindashboard {
         }
         db.viewRecords(records, headers, columns);
 
-        System.out.print("\n  Enter the User ID of the " + type + " to APPROVE: ");
-        int id = Main2.getIntInput(sc, 1, Integer.MAX_VALUE); 
+        int id;
+        Map<String, Object> user;
+
+    while (true) {
+        System.out.print("\n  Enter the User ID of the " + type + " to APPROVE (Enter 0 to cancel): ");
+        id = Main2.getIntInput(sc, 0, Integer.MAX_VALUE);
         sc.nextLine(); 
 
-        Map<String, Object> user = getUserDetails(id);
-        if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(type) || !((String)user.get("u_status")).equalsIgnoreCase("Pending")) {
-            System.out.println("  Error: User ID " + id + " not found or is not a pending " + type + ".");
+        if (id == 0) {
+            System.out.println("  Approval operation cancelled. Returning to sub-menu.");
             return;
         }
+
+        user = getUserDetails(id);
+        
+        if (user == null || !((String)user.get("u_type")).equalsIgnoreCase(type) || !((String)user.get("u_status")).equalsIgnoreCase("Pending")) {
+            System.out.println("  Error: User ID " + id + " not found, is not a " + type + ", or is already approved. Please try again.");
+            continue; 
+        }
+        break; 
+    }
         
         String updateSql = "UPDATE tbl_user SET u_status = 'Approved' WHERE u_id = ?";
         db.updateRecord(updateSql, id);

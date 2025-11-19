@@ -148,7 +148,7 @@ public class studentdashboard {
         String formattedAvgRating = String.format("%.2f", averageRating);
         
         LocalDateTime now = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd:mm:ss");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd:hh:mm");
         String formattedDate = now.format(formatter);
        
 
@@ -290,8 +290,6 @@ System.out.println("Evaluation submitted successfully. Average Rating: " + forma
     }
     
 private void archiveEvaluation() {
-        System.out.println("\n                    --- ARCHIVE EVALUATION ---");
-
         String schoolId = getStudentSchoolID();
         if (schoolId == null) {
             System.out.println("Error: Student record not found.");
@@ -414,6 +412,7 @@ private void viewMyArchive() {
         return;
     }
     viewArchiveEvaluationDetails(evalId);
+    return;
 }
 private void viewArchiveEvaluationDetails(int evalId) {
     System.out.println("\n--- ARCHIVED EVALUATION ID: " + evalId + " DETAILS ---");
@@ -443,7 +442,10 @@ private void viewArchiveEvaluationDetails(int evalId) {
         }
         
         System.out.printf("%-2d | %-5d | %s\n", qNum, score, question);
+    
     }
-}
+     return;
+            }
 
 }
+

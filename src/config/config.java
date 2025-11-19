@@ -20,7 +20,7 @@ public class config {
             Class.forName("org.sqlite.JDBC");
             if (this.conn == null || this.conn.isClosed()) {
             this.conn = DriverManager.getConnection("jdbc:sqlite:Evaluation_System.db");
-            System.out.println("LET'S CREATE INFINITE LOOP OF ROMANCE, LOVE U <3");
+            System.out.println("LET'S CREATE INFINITE LOOP OF ROMANCE <3");
             }      
         } catch (Exception e) {
             System.out.println("Connection Failed: " + e.getMessage());
@@ -182,63 +182,63 @@ public class config {
             return;
         }
 
-        // 1. Determine column widths
-        int[] widths = new int[columns.length];
-        for (int i = 0; i < columns.length; i++) {
-            widths[i] = headers[i].length(); // Start with header length
-        }
+        // --- ENFORCING FIXED-WIDTH FORMATTING AS REQUESTED ---
+        final int FIXED_COLUMN_WIDTH = 20;
+        final String FIXED_FORMAT = "%-" + FIXED_COLUMN_WIDTH + "s";
+        
+        // Construct the fixed separator line (80 chars total) from the teacher's code
+        // This assumes 4 columns of 20 chars each, plus pipe/space separators, which roughly matches 80 characters.
+        String fixedSeparator = "-------------------------------------------------------------------------------------------------------------------"; 
 
-        for (Map<String, Object> record : records) {
-            for (int i = 0; i < columns.length; i++) {
-                Object value = record.get(columns[i]);
-                String sValue = (value == null) ? "NULL" : value.toString();
-                if (sValue.length() > widths[i]) {
-                    widths[i] = sValue.length();
-                }
-            }
-        }
+        // 1. Print the top separator
+        System.out.println(fixedSeparator);
 
-        // Add padding
-        for (int i = 0; i < widths.length; i++) {
-            widths[i] += 2;
+        // 2. Print Headers
+        StringBuilder headerLine = new StringBuilder("| ");
+        for (String header : headers) {
+            // Truncate header if it exceeds fixed width
+            String displayHeader = header.length() > FIXED_COLUMN_WIDTH ? 
+                                   header.substring(0, FIXED_COLUMN_WIDTH) : header;
+            // Apply the requested fixed formatting: %-20s
+            headerLine.append(String.format(FIXED_FORMAT, displayHeader)).append(" | ");
         }
         
-        // 2. Print Separator Line (Fix applied here)
-        StringBuilder separator = new StringBuilder();
-        for (int width : widths) {
-            separator.append("+").append(repeatChar('-', width));
-        }
-        separator.append("+");
-        
-        System.out.println(separator);
-
-        // 3. Print Headers
-        StringBuilder headerLine = new StringBuilder();
-        for (int i = 0; i < headers.length; i++) {
-            headerLine.append("| ");
-            String format = "%-" + (widths[i] - 1) + "s"; 
-            headerLine.append(String.format(format, headers[i]));
+        // The loop above adds a trailing "| " which we need to clean up
+        if (headerLine.length() > 2) {
+            headerLine.setLength(headerLine.length() - 2); 
         }
         headerLine.append("|");
         System.out.println(headerLine);
-        System.out.println(separator);
+        
+        // 3. Print the mid separator
+        System.out.println(fixedSeparator);
 
         // 4. Print Records
         for (Map<String, Object> record : records) {
-            StringBuilder recordLine = new StringBuilder();
-            for (int i = 0; i < columns.length; i++) {
-                recordLine.append("| ");
-                Object value = record.get(columns[i]);
+            StringBuilder recordLine = new StringBuilder("| ");
+            for (String colName : columns) {
+                Object value = record.get(colName);
                 String sValue = (value == null) ? "NULL" : value.toString();
-                String format = "%-" + (widths[i] - 1) + "s";
-                recordLine.append(String.format(format, sValue));
+                
+                // Truncate value if it's too long for the fixed width
+                if (sValue.length() > FIXED_COLUMN_WIDTH) {
+                    sValue = sValue.substring(0, FIXED_COLUMN_WIDTH);
+                }
+                
+                // Apply the requested fixed formatting: %-20s
+                recordLine.append(String.format(FIXED_FORMAT, sValue)).append(" | ");
+            }
+            
+            // Clean up the trailing "| "
+            if (recordLine.length() > 2) {
+                recordLine.setLength(recordLine.length() - 2); 
             }
             recordLine.append("|");
             System.out.println(recordLine);
         }
 
         // 5. Print Footer
-        System.out.println(separator);
+        System.out.println(fixedSeparator);
     }
     
     // =========================================================================
