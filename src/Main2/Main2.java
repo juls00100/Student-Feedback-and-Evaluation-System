@@ -135,8 +135,18 @@ public static String getSuperAdminEmail(config db) {
 
         switch (type) {
             case "Student":
+                String schoolId;
+                List<Map<String, Object>> checkIdResult;
+            do {
                 System.out.print("Enter School ID: ");
-                String schoolId = sc.nextLine();
+                schoolId = sc.nextLine();
+                String checkIdSql = "SELECT s_u_id FROM tbl_student WHERE s_schoolID = ?";
+                checkIdResult = db.fetchRecords(checkIdSql, schoolId);
+                
+                if (!checkIdResult.isEmpty()) {
+                    System.out.println("Error: School ID '" + schoolId + "' is already registered (pending or approved). Please check the ID or contact the admin.");
+                }
+            } while (!checkIdResult.isEmpty());
                 String studentSql = "INSERT INTO tbl_student(s_u_id, s_name, s_schoolID) VALUES(?, ?, ?)";
                 db.addRecord(studentSql, newUserId, name, schoolId);
                 System.out.println("Student account registered successfully! Status: Pending.");
